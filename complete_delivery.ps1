@@ -55,7 +55,7 @@ New-Item -ItemType Directory -Force -Path $ReportsDir | Out-Null
 
 function Remove-DeliveryArtifacts {
     param([string]$Root)
-    foreach ($Relative in @(".qodo", "__pycache__", "poker_agent\__pycache__", "scripts\__pycache__", "src\__pycache__")) {
+    foreach ($Relative in @(".qodo", "__pycache__", "poker_agent\__pycache__", "scripts\__pycache__")) {
         $Target = Join-Path $Root $Relative
         if (Test-Path -LiteralPath $Target) {
             Remove-Item -LiteralPath $Target -Recurse -Force
@@ -98,11 +98,6 @@ $Phase2BenchmarkCsv = Join-Path $ReportsDir "phase2_event_benchmark_results.csv"
 $Phase2BenchmarkJson = Join-Path $ReportsDir "phase2_event_benchmark_results.json"
 $Phase2BenchmarkPredictions = Join-Path $ReportsDir "phase2_event_benchmark_predictions.jsonl"
 $Phase2BenchmarkMarkdown = Join-Path $ReportsDir "phase2_event_benchmark_report.md"
-$QloraDatasetManifest = Join-Path $ReportsDir "qlora_dataset_manifest.json"
-$QloraTrainingPlan = Join-Path $ProjectRoot "outputs\qwen25_qlora\training_plan.json"
-$QloraMetrics = Join-Path $ProjectRoot "outputs\qlora_metrics.json"
-$QloraPredictions = Join-Path $ProjectRoot "outputs\qlora_predictions.jsonl"
-$QloraBaselineComparison = Join-Path $ProjectRoot "outputs\baseline_vs_qlora.csv"
 $GoldEvalReport = Join-Path $ReportsDir "llm_event_gold_eval.json"
 $GoldPredictionsReport = Join-Path $ReportsDir "llm_event_gold_predictions.jsonl"
 $GoldMarkdownReport = Join-Path $ReportsDir "llm_event_gold_report.md"
@@ -186,30 +181,6 @@ Write-Host "4c/8 Running Phase 2 event-normalization benchmark..." -ForegroundCo
     "python_executable=$Python"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Phase 2 event-normalization benchmark failed."
-}
-
-Write-Host "4d/8 Building Phase 3 QLoRA dataset..." -ForegroundColor Green
-& $Python scripts\run_hydra_experiment.py `
-    experiments=build_qlora_dataset `
-    "python_executable=$Python"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Phase 3 QLoRA dataset build failed."
-}
-
-Write-Host "4e/8 Validating Phase 3 QLoRA training contract..." -ForegroundColor Green
-& $Python scripts\run_hydra_experiment.py `
-    experiments=train_qlora_dry_run `
-    "python_executable=$Python"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Phase 3 QLoRA training contract validation failed."
-}
-
-Write-Host "4f/8 Running Phase 3 QLoRA evaluation contract..." -ForegroundColor Green
-& $Python scripts\run_hydra_experiment.py `
-    experiments=evaluate_qlora_smoke `
-    "python_executable=$Python"
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Phase 3 QLoRA evaluation contract failed."
 }
 
 Write-Host "5/8 Running gold event extraction evaluation..." -ForegroundColor Green
@@ -298,11 +269,6 @@ Write-Host "Phase 2 benchmark CSV: $Phase2BenchmarkCsv"
 Write-Host "Phase 2 benchmark JSON: $Phase2BenchmarkJson"
 Write-Host "Phase 2 benchmark predictions: $Phase2BenchmarkPredictions"
 Write-Host "Phase 2 benchmark report: $Phase2BenchmarkMarkdown"
-Write-Host "QLoRA dataset manifest: $QloraDatasetManifest"
-Write-Host "QLoRA training plan: $QloraTrainingPlan"
-Write-Host "QLoRA metrics: $QloraMetrics"
-Write-Host "QLoRA predictions: $QloraPredictions"
-Write-Host "QLoRA baseline comparison: $QloraBaselineComparison"
 Write-Host "Gold event eval: $GoldEvalReport"
 Write-Host "Gold event report: $GoldMarkdownReport"
 Write-Host "Instruction-model eval: $TransformerEvalReport"

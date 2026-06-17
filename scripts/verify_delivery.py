@@ -74,10 +74,6 @@ def require_files(root: Path) -> str:
         "configs/experiments/build_dataset.yaml",
         "configs/experiments/build_event_schema_dataset.yaml",
         "configs/experiments/phase2_event_benchmark.yaml",
-        "configs/experiments/build_qlora_dataset.yaml",
-        "configs/experiments/train_qlora_dry_run.yaml",
-        "configs/experiments/evaluate_qlora_smoke.yaml",
-        "configs/experiments/inference_qlora_smoke.yaml",
         "configs/experiments/repo_hygiene.yaml",
         "configs/experiments/train_single_hgb.yaml",
         "configs/experiments/evaluate_policy.yaml",
@@ -108,7 +104,6 @@ def require_files(root: Path) -> str:
         "reports/phase2_event_benchmark_results.json",
         "reports/phase2_event_benchmark_predictions.jsonl",
         "reports/phase2_event_benchmark_report.md",
-        "reports/qlora_dataset_manifest.json",
         "reports/llm_event_gold_eval.json",
         "reports/llm_event_gold_report.md",
         "reports/llm_event_methodology.md",
@@ -121,15 +116,7 @@ def require_files(root: Path) -> str:
         "evaluation/event_schema_v1.json",
         "evaluation/event_extraction_phase1.jsonl",
         "evaluation/event_extraction_phase1_splits.json",
-        "data/train.jsonl",
-        "data/val.jsonl",
-        "data/test.jsonl",
-        "outputs/qwen25_qlora/training_plan.json",
-        "outputs/qlora_predictions.jsonl",
-        "outputs/qlora_metrics.json",
-        "outputs/baseline_vs_qlora.csv",
         "scripts/benchmark.py",
-        "scripts/build_qlora_dataset.py",
         "scripts/build_event_schema_dataset.py",
         "scripts/train_policy.py",
         "scripts/train_policy_bundle.py",
@@ -159,17 +146,6 @@ def require_files(root: Path) -> str:
         "poker_agent/event_normalization/prompts.py",
         "poker_agent/event_normalization/schema.py",
         "poker_agent/event_normalization/zero_shot.py",
-        "config.yaml",
-        "train_qlora.py",
-        "evaluate_qlora.py",
-        "inference.py",
-        "src/__init__.py",
-        "src/dataset.py",
-        "src/formatting.py",
-        "src/metrics.py",
-        "src/model_loader.py",
-        "src/prompts.py",
-        "src/schema.py",
         "poker_agent/llm_decision.py",
         "poker_agent/model.py",
         "poker_agent/slices.py",
@@ -207,7 +183,6 @@ def compile_sources(root: Path) -> str:
         "scripts/audit_repository.py",
         "scripts/check_repo_hygiene.py",
         "scripts/benchmark.py",
-        "scripts/build_qlora_dataset.py",
         "scripts/build_event_schema_dataset.py",
         "scripts/evaluate_policy.py",
         "scripts/llm_event_benchmark.py",
@@ -221,16 +196,6 @@ def compile_sources(root: Path) -> str:
         "scripts/train_policy.py",
         "scripts/train_policy_bundle.py",
         "scripts/verify_delivery.py",
-        "train_qlora.py",
-        "evaluate_qlora.py",
-        "inference.py",
-        "src/__init__.py",
-        "src/dataset.py",
-        "src/formatting.py",
-        "src/metrics.py",
-        "src/model_loader.py",
-        "src/prompts.py",
-        "src/schema.py",
     ]
     for relative in source_files:
         path = root / relative
@@ -309,9 +274,6 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     gate = json.loads((root / "reports" / "production_gate.json").read_text(encoding="utf-8"))
     event_schema_report = root / "reports" / "event_schema_dataset_report.json"
     phase2_report = root / "reports" / "phase2_event_benchmark_results.json"
-    qlora_manifest = root / "reports" / "qlora_dataset_manifest.json"
-    qlora_metrics_path = root / "outputs" / "qlora_metrics.json"
-    qlora_comparison = root / "outputs" / "baseline_vs_qlora.csv"
     benchmark = root / "reports" / "llm_event_benchmark.json"
     gold_eval = root / "reports" / "llm_event_gold_eval.json"
     transformer_eval = root / "reports" / "llm_transformer_gold_eval.json"
@@ -363,28 +325,6 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
         f", phase2_examples={phase2_payload.get('examples')}"
         f", phase2_best={best_phase2.get('method')}"
         f", phase2_macro_f1={best_phase2.get('macro_f1')}"
-    )
-    if not qlora_manifest.exists():
-        raise AssertionError("Phase 3 QLoRA dataset manifest is missing")
-    qlora_dataset = json.loads(qlora_manifest.read_text(encoding="utf-8"))
-    if qlora_dataset.get("status") != "PASS":
-        raise AssertionError(f"Phase 3 QLoRA dataset did not pass validation: {qlora_dataset.get('status')}")
-    qlora_counts = qlora_dataset.get("counts", {})
-    if set(qlora_counts) != {"test", "train", "val"} or min(qlora_counts.values()) <= 0:
-        raise AssertionError(f"Phase 3 QLoRA split counts are invalid: {qlora_counts}")
-    if not qlora_metrics_path.exists():
-        raise AssertionError("Phase 3 QLoRA evaluation metrics are missing")
-    qlora_metrics = json.loads(qlora_metrics_path.read_text(encoding="utf-8"))
-    if qlora_metrics.get("schema_validity_rate", 0.0) < 0.99:
-        raise AssertionError("Phase 3 QLoRA evaluation contract has insufficient schema validity")
-    if qlora_metrics.get("examples", 0) <= 0:
-        raise AssertionError("Phase 3 QLoRA evaluation has no evaluated examples")
-    if not qlora_comparison.exists():
-        raise AssertionError("Phase 3 baseline comparison CSV is missing")
-    benchmark_detail += (
-        f", qlora_train_rows={qlora_counts.get('train')}"
-        f", qlora_eval_examples={qlora_metrics.get('examples')}"
-        f", qlora_macro_f1={qlora_metrics.get('macro_f1')}"
     )
     if benchmark.exists():
         benchmark_payload = json.loads(benchmark.read_text(encoding="utf-8"))
@@ -505,10 +445,6 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "configs/experiments/build_dataset.yaml",
         "configs/experiments/build_event_schema_dataset.yaml",
         "configs/experiments/phase2_event_benchmark.yaml",
-        "configs/experiments/build_qlora_dataset.yaml",
-        "configs/experiments/train_qlora_dry_run.yaml",
-        "configs/experiments/evaluate_qlora_smoke.yaml",
-        "configs/experiments/inference_qlora_smoke.yaml",
         "configs/experiments/repo_hygiene.yaml",
         "configs/experiments/train_single_hgb.yaml",
         "configs/experiments/repo_audit.yaml",
@@ -520,13 +456,6 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "evaluation/event_schema_v1.json",
         "evaluation/event_extraction_phase1.jsonl",
         "evaluation/event_extraction_phase1_splits.json",
-        "data/train.jsonl",
-        "data/val.jsonl",
-        "data/test.jsonl",
-        "outputs/qwen25_qlora/training_plan.json",
-        "outputs/qlora_predictions.jsonl",
-        "outputs/qlora_metrics.json",
-        "outputs/baseline_vs_qlora.csv",
         "reports/dataset_audit.json",
         "reports/repository_audit.json",
         "reports/production_gate.json",
@@ -536,7 +465,6 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "reports/phase2_event_benchmark_results.json",
         "reports/phase2_event_benchmark_predictions.jsonl",
         "reports/phase2_event_benchmark_report.md",
-        "reports/qlora_dataset_manifest.json",
         "reports/llm_event_benchmark.json",
         "reports/llm_event_gold_eval.json",
         "reports/llm_event_gold_report.md",
@@ -547,7 +475,6 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "reports/llm_decision_agent_report.md",
         "reports/delivery_report.md",
         "scripts/benchmark.py",
-        "scripts/build_qlora_dataset.py",
         "scripts/check_repo_hygiene.py",
         "scripts/audit_repository.py",
         "scripts/build_event_schema_dataset.py",
@@ -568,17 +495,6 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "poker_agent/event_normalization/prompts.py",
         "poker_agent/event_normalization/schema.py",
         "poker_agent/event_normalization/zero_shot.py",
-        "config.yaml",
-        "train_qlora.py",
-        "evaluate_qlora.py",
-        "inference.py",
-        "src/__init__.py",
-        "src/dataset.py",
-        "src/formatting.py",
-        "src/metrics.py",
-        "src/model_loader.py",
-        "src/prompts.py",
-        "src/schema.py",
         "verify_delivery.ps1",
     }
     if not zip_path.exists():

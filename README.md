@@ -100,10 +100,6 @@ llm_event_benchmark
 llm_event_gold_eval
 llm_transformer_gold_eval
 llm_decision_baseline
-build_qlora_dataset
-train_qlora_dry_run
-evaluate_qlora_smoke
-inference_qlora_smoke
 verify_delivery
 ```
 
@@ -117,9 +113,6 @@ Useful commands:
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_event_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_transformer_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline python_executable=.venv/Scripts/python.exe
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=build_qlora_dataset python_executable=.venv/Scripts/python.exe
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=train_qlora_dry_run python_executable=.venv/Scripts/python.exe
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=evaluate_qlora_smoke python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=verify_delivery python_executable=.venv/Scripts/python.exe
 ```
 
@@ -219,114 +212,7 @@ fast and reproducible. To run the same benchmark against local or downloadable
 instruction models, switch the backend and model IDs:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark experiments.command.args.backend=transformers "experiments.command.args.model_ids=[qwen2_5_1_5b,qwen3_1_7b,smollm2_1_7b]" python_executable=.venv/Scripts/python.exe
-```
-
-## Phase 3 QLoRA Fine-Tuning Pipeline
-
-Phase 3 adds a supervised QLoRA pipeline for the bounded event-normalization
-component. The model converts noisy OCR/dealer-log text into strict JSON
-events and does not make poker policy decisions.
-
-Main files:
-
-```text
-config.yaml
-train_qlora.py
-evaluate_qlora.py
-inference.py
-src\dataset.py
-src\formatting.py
-src\hybrid_router.py
-src\metrics.py
-src\model_loader.py
-src\prompts.py
-src\schema.py
-src\training_contract.py
-src\simulation.py
-scripts\validate_llm_training_pipeline.py
-```
-
-Build Phase 3 train/validation/test files from the reviewed Phase 1 dataset:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=build_qlora_dataset python_executable=.venv/Scripts/python.exe
-```
-
-Generated files:
-
-```text
-data\train.jsonl
-data\val.jsonl
-data\test.jsonl
-reports\qlora_dataset_manifest.json
-```
-
-Validate the training contract without loading model weights:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=train_qlora_dry_run python_executable=.venv/Scripts/python.exe
-```
-
-Full QLoRA training on a CUDA-capable machine:
-
-```powershell
-.\.venv\Scripts\python.exe train_qlora.py --config config.yaml
-```
-
-Evaluate the trained adapter directly:
-
-```powershell
-.\.venv\Scripts\python.exe evaluate_qlora.py --config config.yaml --model-path outputs/qwen25_qlora --test-file data/test.jsonl
-```
-
-Evaluate the production parser-first system with lazy QLoRA fallback:
-
-```powershell
-.\.venv\Scripts\python.exe evaluate_qlora.py --config config.yaml --model-path outputs/qwen25_qlora --test-file data/test.jsonl --backend hybrid
-```
-
-The same production evaluation can be launched through Hydra:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=evaluate_hybrid_production python_executable=.venv/Scripts/python.exe
-```
-
-Generated evaluation outputs:
-
-```text
-outputs\qlora_predictions.jsonl
-outputs\qlora_metrics.json
-outputs\baseline_vs_qlora.csv
-outputs\qwen25_qlora_direct_metrics.json
-outputs\qwen25_qlora_direct_predictions.jsonl
-```
-
-Validate the full LLM training, evaluation, and simulation-readiness contract:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\validate_llm_training_pipeline.py --config config.yaml
-```
-
-The same validation can be launched through Hydra:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=validate_llm_training_pipeline python_executable=.venv/Scripts/python.exe
-```
-
-Generated validation outputs:
-
-```text
-reports\llm_training_validation_report.json
-reports\llm_training_validation_report.md
-reports\simulation_readiness.json
-outputs\simulation_events.jsonl
-```
-
-Single-record inference:
-
-```powershell
-.\.venv\Scripts\python.exe inference.py --config config.yaml --model-path outputs/qwen25_qlora --text "Plyr3 ra1se $4.50"
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark experiments.command.args.backend=transformers "experiments.command.args.model_ids=qwen2_5_1_5b,qwen3_1_7b,smollm2_1_7b" python_executable=.venv/Scripts/python.exe
 ```
 
 ## Text Event Extraction Results

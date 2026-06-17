@@ -16,7 +16,3 @@ catboost>=1.2
 torch>=2.2
 transformers>=4.46,<5
 safetensors>=0.4
-accelerate>=0.30
-peft>=0.11
-trl>=0.9
-bitsandbytes>=0.43
