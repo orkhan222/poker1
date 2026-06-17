@@ -1,0 +1,29 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: phase2_event_benchmark
+description: Compare deterministic parser, zero-shot, few-shot, and candidate-ranker event-normalization baselines.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/benchmark.py
+  args:
+    dataset: evaluation/event_extraction_phase1.jsonl
+    split: test
+    backend: heuristic
+    model_ids: heuristic_text
+    few_shot_sizes: 5,10
+    out_csv: ${logging.reports_dir}/phase2_event_benchmark_results.csv
+    out_json: ${logging.reports_dir}/phase2_event_benchmark_results.json
+    predictions_out: ${logging.reports_dir}/phase2_event_benchmark_predictions.jsonl
+    report_out: ${logging.reports_dir}/phase2_event_benchmark_report.md
+    device: cpu
+    max_new_tokens: 128
+    temperature: 0.0
+    max_examples: 0
+    seed: ${training.seed}

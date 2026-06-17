@@ -49,6 +49,8 @@ def run_check(name: str, fn: Callable[[], str]) -> Check:
 def require_files(root: Path) -> str:
     required = [
         "README.md",
+        "docs/llm_agent_architecture.md",
+        "evaluation.ipynb",
         "requirements.txt",
         "configs/experiment.yaml",
         "configs/dataset/poker_csv.yaml",
@@ -57,6 +59,7 @@ def require_files(root: Path) -> str:
         "configs/model/routed_bundle_smoke.yaml",
         "configs/model/text_event_local_rules.yaml",
         "configs/model/text_event_smol.yaml",
+        "configs/model/text_decision_local.yaml",
         "configs/training/group_holdout.yaml",
         "configs/training/smoke.yaml",
         "configs/evaluation/standard.yaml",
@@ -69,6 +72,12 @@ def require_files(root: Path) -> str:
         "configs/prompts/event_extraction_fewshot.txt",
         "configs/prompts/event_type_candidate_ranker.txt",
         "configs/experiments/build_dataset.yaml",
+        "configs/experiments/build_event_schema_dataset.yaml",
+        "configs/experiments/phase2_event_benchmark.yaml",
+        "configs/experiments/build_qlora_dataset.yaml",
+        "configs/experiments/train_qlora_dry_run.yaml",
+        "configs/experiments/evaluate_qlora_smoke.yaml",
+        "configs/experiments/inference_qlora_smoke.yaml",
         "configs/experiments/repo_hygiene.yaml",
         "configs/experiments/train_single_hgb.yaml",
         "configs/experiments/evaluate_policy.yaml",
@@ -81,6 +90,7 @@ def require_files(root: Path) -> str:
         "configs/experiments/llm_event_benchmark.yaml",
         "configs/experiments/llm_event_gold_eval.yaml",
         "configs/experiments/llm_transformer_gold_eval.yaml",
+        "configs/experiments/llm_decision_baseline.yaml",
         "configs/experiments/verify_delivery.yaml",
         "Dockerfile",
         "docker-compose.yml",
@@ -92,13 +102,35 @@ def require_files(root: Path) -> str:
         "reports/dataset_audit.json",
         "reports/repository_audit.json",
         "reports/production_gate.json",
+        "reports/event_schema_dataset_report.json",
+        "reports/event_schema_dataset_report.md",
+        "reports/phase2_event_benchmark_results.csv",
+        "reports/phase2_event_benchmark_results.json",
+        "reports/phase2_event_benchmark_predictions.jsonl",
+        "reports/phase2_event_benchmark_report.md",
+        "reports/qlora_dataset_manifest.json",
         "reports/llm_event_gold_eval.json",
         "reports/llm_event_gold_report.md",
         "reports/llm_event_methodology.md",
         "reports/llm_transformer_gold_eval.json",
         "reports/llm_transformer_gold_report.md",
+        "reports/llm_decision_agent_eval.json",
+        "reports/llm_decision_agent_report.md",
         "reports/delivery_report.md",
         "evaluation/event_extraction_gold.jsonl",
+        "evaluation/event_schema_v1.json",
+        "evaluation/event_extraction_phase1.jsonl",
+        "evaluation/event_extraction_phase1_splits.json",
+        "data/train.jsonl",
+        "data/val.jsonl",
+        "data/test.jsonl",
+        "outputs/qwen25_qlora/training_plan.json",
+        "outputs/qlora_predictions.jsonl",
+        "outputs/qlora_metrics.json",
+        "outputs/baseline_vs_qlora.csv",
+        "scripts/benchmark.py",
+        "scripts/build_qlora_dataset.py",
+        "scripts/build_event_schema_dataset.py",
         "scripts/train_policy.py",
         "scripts/train_policy_bundle.py",
         "scripts/evaluate_policy.py",
@@ -109,12 +141,36 @@ def require_files(root: Path) -> str:
         "scripts/llm_event_gold_eval.py",
         "scripts/llm_event_extraction.py",
         "scripts/llm_transformer_gold_eval.py",
+        "scripts/evaluate_llm_decision_agent.py",
         "scripts/production_gate.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
         "poker_agent/service.py",
         "poker_agent/agents.py",
         "poker_agent/features.py",
+        "poker_agent/event_schema.py",
+        "poker_agent/event_normalization/__init__.py",
+        "poker_agent/event_normalization/backends.py",
+        "poker_agent/event_normalization/benchmark.py",
+        "poker_agent/event_normalization/candidate_ranker.py",
+        "poker_agent/event_normalization/few_shot.py",
+        "poker_agent/event_normalization/metrics.py",
+        "poker_agent/event_normalization/parser.py",
+        "poker_agent/event_normalization/prompts.py",
+        "poker_agent/event_normalization/schema.py",
+        "poker_agent/event_normalization/zero_shot.py",
+        "config.yaml",
+        "train_qlora.py",
+        "evaluate_qlora.py",
+        "inference.py",
+        "src/__init__.py",
+        "src/dataset.py",
+        "src/formatting.py",
+        "src/metrics.py",
+        "src/model_loader.py",
+        "src/prompts.py",
+        "src/schema.py",
+        "poker_agent/llm_decision.py",
         "poker_agent/model.py",
         "poker_agent/slices.py",
         "poker_agent/validation.py",
@@ -129,7 +185,19 @@ def compile_sources(root: Path) -> str:
     source_files = [
         "poker_agent/agents.py",
         "poker_agent/evaluator.py",
+        "poker_agent/event_schema.py",
+        "poker_agent/event_normalization/__init__.py",
+        "poker_agent/event_normalization/backends.py",
+        "poker_agent/event_normalization/benchmark.py",
+        "poker_agent/event_normalization/candidate_ranker.py",
+        "poker_agent/event_normalization/few_shot.py",
+        "poker_agent/event_normalization/metrics.py",
+        "poker_agent/event_normalization/parser.py",
+        "poker_agent/event_normalization/prompts.py",
+        "poker_agent/event_normalization/schema.py",
+        "poker_agent/event_normalization/zero_shot.py",
         "poker_agent/features.py",
+        "poker_agent/llm_decision.py",
         "poker_agent/model.py",
         "poker_agent/schemas.py",
         "poker_agent/service.py",
@@ -138,17 +206,31 @@ def compile_sources(root: Path) -> str:
         "scripts/audit_dataset.py",
         "scripts/audit_repository.py",
         "scripts/check_repo_hygiene.py",
+        "scripts/benchmark.py",
+        "scripts/build_qlora_dataset.py",
+        "scripts/build_event_schema_dataset.py",
         "scripts/evaluate_policy.py",
         "scripts/llm_event_benchmark.py",
         "scripts/llm_event_gold_eval.py",
         "scripts/llm_event_extraction.py",
         "scripts/llm_transformer_gold_eval.py",
+        "scripts/evaluate_llm_decision_agent.py",
         "scripts/production_gate.py",
         "scripts/research_experiment.py",
         "scripts/run_hydra_experiment.py",
         "scripts/train_policy.py",
         "scripts/train_policy_bundle.py",
         "scripts/verify_delivery.py",
+        "train_qlora.py",
+        "evaluate_qlora.py",
+        "inference.py",
+        "src/__init__.py",
+        "src/dataset.py",
+        "src/formatting.py",
+        "src/metrics.py",
+        "src/model_loader.py",
+        "src/prompts.py",
+        "src/schema.py",
     ]
     for relative in source_files:
         path = root / relative
@@ -225,9 +307,15 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     audit = json.loads((root / "reports" / "dataset_audit.json").read_text(encoding="utf-8"))
     repo_audit = json.loads((root / "reports" / "repository_audit.json").read_text(encoding="utf-8"))
     gate = json.loads((root / "reports" / "production_gate.json").read_text(encoding="utf-8"))
+    event_schema_report = root / "reports" / "event_schema_dataset_report.json"
+    phase2_report = root / "reports" / "phase2_event_benchmark_results.json"
+    qlora_manifest = root / "reports" / "qlora_dataset_manifest.json"
+    qlora_metrics_path = root / "outputs" / "qlora_metrics.json"
+    qlora_comparison = root / "outputs" / "baseline_vs_qlora.csv"
     benchmark = root / "reports" / "llm_event_benchmark.json"
     gold_eval = root / "reports" / "llm_event_gold_eval.json"
     transformer_eval = root / "reports" / "llm_transformer_gold_eval.json"
+    decision_eval = root / "reports" / "llm_decision_agent_eval.json"
     if "findings" not in audit:
         raise AssertionError("Audit report has no findings key")
     if repo_audit.get("status") != "PASS":
@@ -243,13 +331,66 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
         raise AssertionError(f"Invalid gate status: {gate.get('status')}")
     if require_gate_pass and gate.get("status") != "PASS":
         raise AssertionError("Production gate did not pass")
+    if not event_schema_report.exists():
+        raise AssertionError("Phase 1 event schema dataset report is missing")
+    schema_payload = json.loads(event_schema_report.read_text(encoding="utf-8"))
+    if schema_payload.get("status") != "PASS":
+        raise AssertionError(f"Phase 1 event schema dataset did not pass validation: {schema_payload.get('status')}")
+    if schema_payload.get("examples", 0) < 100:
+        raise AssertionError("Phase 1 event schema dataset has fewer than 100 rows")
+    if schema_payload.get("groups", 0) < 20:
+        raise AssertionError("Phase 1 event schema dataset has insufficient grouped parents")
+    if set(schema_payload.get("split_counts", {})) != {"train", "valid", "test"}:
+        raise AssertionError("Phase 1 event schema dataset does not include train/valid/test splits")
+    benchmark_detail = (
+        f", event_schema_rows={schema_payload.get('examples')}"
+        f", event_schema_groups={schema_payload.get('groups')}"
+    )
+    if not phase2_report.exists():
+        raise AssertionError("Phase 2 event-normalization benchmark report is missing")
+    phase2_payload = json.loads(phase2_report.read_text(encoding="utf-8"))
+    phase2_systems = phase2_payload.get("systems", [])
+    phase2_methods = {system.get("method") for system in phase2_systems}
+    required_phase2_methods = {"deterministic_parser", "zero_shot", "few_shot_5", "few_shot_10", "candidate_ranker"}
+    if not required_phase2_methods.issubset(phase2_methods):
+        raise AssertionError(f"Phase 2 benchmark is missing methods: {sorted(required_phase2_methods - phase2_methods)}")
+    if phase2_payload.get("examples", 0) <= 0:
+        raise AssertionError("Phase 2 benchmark has no evaluated examples")
+    best_phase2 = max(phase2_systems, key=lambda item: item.get("macro_f1", 0.0))
+    if best_phase2.get("schema_validity_rate", 0.0) < 0.99:
+        raise AssertionError("Phase 2 benchmark best system has insufficient schema validity")
+    benchmark_detail += (
+        f", phase2_examples={phase2_payload.get('examples')}"
+        f", phase2_best={best_phase2.get('method')}"
+        f", phase2_macro_f1={best_phase2.get('macro_f1')}"
+    )
+    if not qlora_manifest.exists():
+        raise AssertionError("Phase 3 QLoRA dataset manifest is missing")
+    qlora_dataset = json.loads(qlora_manifest.read_text(encoding="utf-8"))
+    if qlora_dataset.get("status") != "PASS":
+        raise AssertionError(f"Phase 3 QLoRA dataset did not pass validation: {qlora_dataset.get('status')}")
+    qlora_counts = qlora_dataset.get("counts", {})
+    if set(qlora_counts) != {"test", "train", "val"} or min(qlora_counts.values()) <= 0:
+        raise AssertionError(f"Phase 3 QLoRA split counts are invalid: {qlora_counts}")
+    if not qlora_metrics_path.exists():
+        raise AssertionError("Phase 3 QLoRA evaluation metrics are missing")
+    qlora_metrics = json.loads(qlora_metrics_path.read_text(encoding="utf-8"))
+    if qlora_metrics.get("schema_validity_rate", 0.0) < 0.99:
+        raise AssertionError("Phase 3 QLoRA evaluation contract has insufficient schema validity")
+    if qlora_metrics.get("examples", 0) <= 0:
+        raise AssertionError("Phase 3 QLoRA evaluation has no evaluated examples")
+    if not qlora_comparison.exists():
+        raise AssertionError("Phase 3 baseline comparison CSV is missing")
+    benchmark_detail += (
+        f", qlora_train_rows={qlora_counts.get('train')}"
+        f", qlora_eval_examples={qlora_metrics.get('examples')}"
+        f", qlora_macro_f1={qlora_metrics.get('macro_f1')}"
+    )
     if benchmark.exists():
         benchmark_payload = json.loads(benchmark.read_text(encoding="utf-8"))
         if "systems" not in benchmark_payload:
             raise AssertionError("Event extraction benchmark has no systems key")
-        benchmark_detail = f", event_benchmark_records={benchmark_payload.get('records_evaluated')}"
-    else:
-        benchmark_detail = ""
+        benchmark_detail += f", event_benchmark_records={benchmark_payload.get('records_evaluated')}"
     if not gold_eval.exists():
         raise AssertionError("Gold event extraction evaluation report is missing")
     gold_payload = json.loads(gold_eval.read_text(encoding="utf-8"))
@@ -282,6 +423,19 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
         f", calibrated_macro_f1={calibrated.get('macro_f1')}"
         f", hybrid_macro_f1={hybrid.get('macro_f1')}"
         f", hybrid_llm_fallback_rate={hybrid_metrics.get('llm_fallback_rate')}"
+    )
+    if not decision_eval.exists():
+        raise AssertionError("Text-model decision baseline report is missing")
+    decision_payload = json.loads(decision_eval.read_text(encoding="utf-8"))
+    decision_metrics = decision_payload.get("metrics", {})
+    if decision_metrics.get("examples", 0.0) <= 0.0:
+        raise AssertionError("Text-model decision baseline has no evaluated examples")
+    if decision_payload.get("invalid_output_rate", 1.0) > 0.05:
+        raise AssertionError("Text-model decision baseline invalid output rate is too high")
+    benchmark_detail += (
+        f", decision_examples={int(decision_metrics.get('examples', 0.0))}"
+        f", decision_accuracy={decision_metrics.get('accuracy')}"
+        f", decision_macro_f1={decision_metrics.get('macro_f1')}"
     )
     return (
         f"audit_findings={len(audit.get('findings', []))}, "
@@ -340,36 +494,91 @@ def zip_contract(root: Path, zip_path: Path) -> str:
     required = {
         "models/poker_policy.joblib",
         "README.md",
+        "docs/llm_agent_architecture.md",
+        "evaluation.ipynb",
         "configs/experiment.yaml",
         "configs/dataset/poker_csv.yaml",
         "configs/model/hist_gradient_boosting.yaml",
         "configs/model/text_event_smol.yaml",
+        "configs/model/text_decision_local.yaml",
         "configs/prompts/event_type_candidate_ranker.txt",
         "configs/experiments/build_dataset.yaml",
+        "configs/experiments/build_event_schema_dataset.yaml",
+        "configs/experiments/phase2_event_benchmark.yaml",
+        "configs/experiments/build_qlora_dataset.yaml",
+        "configs/experiments/train_qlora_dry_run.yaml",
+        "configs/experiments/evaluate_qlora_smoke.yaml",
+        "configs/experiments/inference_qlora_smoke.yaml",
         "configs/experiments/repo_hygiene.yaml",
         "configs/experiments/train_single_hgb.yaml",
         "configs/experiments/repo_audit.yaml",
         "configs/experiments/llm_event_benchmark.yaml",
         "configs/experiments/llm_event_gold_eval.yaml",
         "configs/experiments/llm_transformer_gold_eval.yaml",
+        "configs/experiments/llm_decision_baseline.yaml",
         "evaluation/event_extraction_gold.jsonl",
+        "evaluation/event_schema_v1.json",
+        "evaluation/event_extraction_phase1.jsonl",
+        "evaluation/event_extraction_phase1_splits.json",
+        "data/train.jsonl",
+        "data/val.jsonl",
+        "data/test.jsonl",
+        "outputs/qwen25_qlora/training_plan.json",
+        "outputs/qlora_predictions.jsonl",
+        "outputs/qlora_metrics.json",
+        "outputs/baseline_vs_qlora.csv",
         "reports/dataset_audit.json",
         "reports/repository_audit.json",
         "reports/production_gate.json",
+        "reports/event_schema_dataset_report.json",
+        "reports/event_schema_dataset_report.md",
+        "reports/phase2_event_benchmark_results.csv",
+        "reports/phase2_event_benchmark_results.json",
+        "reports/phase2_event_benchmark_predictions.jsonl",
+        "reports/phase2_event_benchmark_report.md",
+        "reports/qlora_dataset_manifest.json",
         "reports/llm_event_benchmark.json",
         "reports/llm_event_gold_eval.json",
         "reports/llm_event_gold_report.md",
         "reports/llm_event_methodology.md",
         "reports/llm_transformer_gold_eval.json",
         "reports/llm_transformer_gold_report.md",
+        "reports/llm_decision_agent_eval.json",
+        "reports/llm_decision_agent_report.md",
         "reports/delivery_report.md",
+        "scripts/benchmark.py",
+        "scripts/build_qlora_dataset.py",
         "scripts/check_repo_hygiene.py",
         "scripts/audit_repository.py",
+        "scripts/build_event_schema_dataset.py",
         "scripts/llm_event_benchmark.py",
         "scripts/llm_event_gold_eval.py",
         "scripts/llm_transformer_gold_eval.py",
+        "scripts/evaluate_llm_decision_agent.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
+        "poker_agent/event_schema.py",
+        "poker_agent/event_normalization/__init__.py",
+        "poker_agent/event_normalization/backends.py",
+        "poker_agent/event_normalization/benchmark.py",
+        "poker_agent/event_normalization/candidate_ranker.py",
+        "poker_agent/event_normalization/few_shot.py",
+        "poker_agent/event_normalization/metrics.py",
+        "poker_agent/event_normalization/parser.py",
+        "poker_agent/event_normalization/prompts.py",
+        "poker_agent/event_normalization/schema.py",
+        "poker_agent/event_normalization/zero_shot.py",
+        "config.yaml",
+        "train_qlora.py",
+        "evaluate_qlora.py",
+        "inference.py",
+        "src/__init__.py",
+        "src/dataset.py",
+        "src/formatting.py",
+        "src/metrics.py",
+        "src/model_loader.py",
+        "src/prompts.py",
+        "src/schema.py",
         "verify_delivery.ps1",
     }
     if not zip_path.exists():

@@ -1,0 +1,30 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_decision_local
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: llm_decision_baseline
+description: Evaluate the constrained text-model decision baseline against historical poker actions.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/evaluate_llm_decision_agent.py
+  args:
+    dataset: ${dataset.root}
+    out: ${logging.reports_dir}/llm_decision_agent_eval.json
+    predictions_out: ${logging.reports_dir}/llm_decision_agent_predictions.jsonl
+    report_out: ${logging.reports_dir}/llm_decision_agent_report.md
+    provider: ${model.provider}
+    mode: ${model.mode}
+    model_id: ${model.model_id}
+    device: ${model.device}
+    max_new_tokens: ${model.max_new_tokens}
+    temperature: ${model.temperature}
+    max_examples: 250
+    allow_missing_hole_cards: false
+    missing_hole_cards: ${dataset.missing_hole_cards_train}
+    keep_all_in_class: false
+    seed: ${training.seed}

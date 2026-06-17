@@ -22,6 +22,7 @@ The package is reproducible and ready for technical handoff. The model is not ma
 |-- poker_agent/              API, schemas, feature extraction, model loading
 |-- scripts/                  training, evaluation, audit, packaging checks
 |-- configs/                  Hydra experiment configuration
+|-- docs/                     architecture and delivery decision records
 |-- evaluation/               reviewed evaluation fixtures
 |-- reports/                  generated metrics and audit outputs
 |-- models/                   packaged model artifact
@@ -56,6 +57,20 @@ http://127.0.0.1:8001/health.json
 
 The health endpoint returns model status, policy name, split strategy, and the validation macro F1 stored in the model metadata.
 
+## Architecture Notes
+
+The LLM component is documented as a bounded event-normalization layer, not as
+an autonomous poker decision system:
+
+```text
+docs\llm_agent_architecture.md
+```
+
+The recommended path is a schema-routed hybrid: deterministic parsing for
+stable event families, LLM fallback only for ambiguous OCR/dealer-log text,
+candidate ranking instead of free-form generation, and schema validation before
+events are accepted into downstream datasets.
+
 ## Reproducible Experiments
 
 Experiments are managed through Hydra. Each experiment has its own YAML file under `configs\experiments` and writes resolved configs, logs, and run metadata under `reports\hydra`.
@@ -70,6 +85,8 @@ Available experiment names:
 
 ```text
 build_dataset
+build_event_schema_dataset
+phase2_event_benchmark
 repo_hygiene
 repo_audit
 audit_dataset
@@ -82,6 +99,11 @@ llm_event_extraction_smoke
 llm_event_benchmark
 llm_event_gold_eval
 llm_transformer_gold_eval
+llm_decision_baseline
+build_qlora_dataset
+train_qlora_dry_run
+evaluate_qlora_smoke
+inference_qlora_smoke
 verify_delivery
 ```
 
@@ -89,9 +111,15 @@ Useful commands:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=repo_audit python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=build_event_schema_dataset python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_event_benchmark python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_event_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_transformer_gold_eval python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=build_qlora_dataset python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=train_qlora_dry_run python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=evaluate_qlora_smoke python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=verify_delivery python_executable=.venv/Scripts/python.exe
 ```
 
@@ -122,6 +150,169 @@ directory when they are below the configured size limit. The repository audit
 also verifies that every Hydra YAML declares every CLI argument supported by
 its entrypoint and rejects CLI fallback defaults that are not owned by a Hydra
 experiment configuration.
+
+## Phase 1 Event Schema Dataset
+
+The event extraction data layer includes a versioned schema, deterministic OCR
+corruption expansion, and grouped train/validation/test splits.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=build_event_schema_dataset python_executable=.venv/Scripts/python.exe
+```
+
+Generated files:
+
+```text
+evaluation\event_schema_v1.json
+evaluation\event_extraction_phase1.jsonl
+evaluation\event_extraction_phase1_splits.json
+reports\event_schema_dataset_report.json
+reports\event_schema_dataset_report.md
+```
+
+Latest Phase 1 dataset summary:
+
+```text
+schema_version=event_schema_v1
+parent_examples=24
+expanded_examples=120
+groups=24
+train_rows=75
+valid_rows=20
+test_rows=25
+validation_status=PASS
+```
+
+## Phase 2 Baseline Benchmark
+
+The Phase 2 benchmark compares deterministic parsing, zero-shot extraction,
+few-shot extraction with 5 and 10 examples, and candidate ranking on the same
+grouped event-normalization test split.
+
+Default reproducible local run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark python_executable=.venv/Scripts/python.exe
+```
+
+Generated files:
+
+```text
+reports\phase2_event_benchmark_results.csv
+reports\phase2_event_benchmark_results.json
+reports\phase2_event_benchmark_predictions.jsonl
+reports\phase2_event_benchmark_report.md
+```
+
+Latest default results on the Phase 1 test split:
+
+```text
+examples=25
+best_method=deterministic_parser
+best_accuracy=1.0000
+best_macro_f1=1.0000
+schema_validity_rate=1.0000
+```
+
+The default run uses a deterministic local backend so delivery checks remain
+fast and reproducible. To run the same benchmark against local or downloadable
+instruction models, switch the backend and model IDs:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark experiments.command.args.backend=transformers "experiments.command.args.model_ids=[qwen2_5_1_5b,qwen3_1_7b,smollm2_1_7b]" python_executable=.venv/Scripts/python.exe
+```
+
+## Phase 3 QLoRA Fine-Tuning Pipeline
+
+Phase 3 adds a supervised QLoRA pipeline for the bounded event-normalization
+component. The model converts noisy OCR/dealer-log text into strict JSON
+events and does not make poker policy decisions.
+
+Main files:
+
+```text
+config.yaml
+train_qlora.py
+evaluate_qlora.py
+inference.py
+src\dataset.py
+src\formatting.py
+src\metrics.py
+src\model_loader.py
+src\prompts.py
+src\schema.py
+src\training_contract.py
+src\simulation.py
+scripts\validate_llm_training_pipeline.py
+```
+
+Build Phase 3 train/validation/test files from the reviewed Phase 1 dataset:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=build_qlora_dataset python_executable=.venv/Scripts/python.exe
+```
+
+Generated files:
+
+```text
+data\train.jsonl
+data\val.jsonl
+data\test.jsonl
+reports\qlora_dataset_manifest.json
+```
+
+Validate the training contract without loading model weights:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=train_qlora_dry_run python_executable=.venv/Scripts/python.exe
+```
+
+Full QLoRA training on a CUDA-capable machine:
+
+```powershell
+.\.venv\Scripts\python.exe train_qlora.py --config config.yaml
+```
+
+Evaluate a trained adapter and compare it with Phase 2 baselines:
+
+```powershell
+.\.venv\Scripts\python.exe evaluate_qlora.py --config config.yaml --model-path outputs/qwen25_qlora --test-file data/test.jsonl
+```
+
+Generated evaluation outputs:
+
+```text
+outputs\qlora_predictions.jsonl
+outputs\qlora_metrics.json
+outputs\baseline_vs_qlora.csv
+```
+
+Validate the full LLM training, evaluation, and simulation-readiness contract:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\validate_llm_training_pipeline.py --config config.yaml
+```
+
+The same validation can be launched through Hydra:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=validate_llm_training_pipeline python_executable=.venv/Scripts/python.exe
+```
+
+Generated validation outputs:
+
+```text
+reports\llm_training_validation_report.json
+reports\llm_training_validation_report.md
+reports\simulation_readiness.json
+outputs\simulation_events.jsonl
+```
+
+Single-record inference:
+
+```powershell
+.\.venv\Scripts\python.exe inference.py --config config.yaml --model-path outputs/qwen25_qlora --text "Plyr3 ra1se $4.50"
+```
 
 ## Text Event Extraction Results
 
@@ -169,6 +360,34 @@ LLM fallback processed `2/24` examples (`0.0833`) with `1.0000` fallback
 accuracy. This result must be revalidated on a larger fixture with ambiguous
 and corrupted event names.
 
+## LLM Decision Baseline
+
+The repository now includes a constrained text-model decision baseline for
+Phase 1 comparison against the supervised policy model. It converts structured
+game state into a compact decision prompt, parses the output into one action,
+and reports accuracy, macro F1, cross-entropy, invalid output rate, latency,
+and confusion matrix.
+
+Default reproducible run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline python_executable=.venv/Scripts/python.exe
+```
+
+Direct run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\evaluate_llm_decision_agent.py --dataset "C:\Users\user\Desktop\AllFile\dataset" --max-examples 250
+```
+
+The default config uses a deterministic local scoring provider so the baseline
+is fast and reproducible. For a real local model run, override the provider and
+model settings:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline model.provider=transformers model.model_id=Qwen/Qwen2.5-1.5B-Instruct training.max_examples=100
+```
+
 ## Latest Model Metrics
 
 Current packaged policy:
@@ -193,11 +412,18 @@ reports\repository_audit.json
 reports\repo_hygiene.json
 reports\dataset_audit.json
 reports\production_gate.json
+reports\event_schema_dataset_report.json
+reports\event_schema_dataset_report.md
+reports\phase2_event_benchmark_results.csv
+reports\phase2_event_benchmark_results.json
+reports\phase2_event_benchmark_report.md
 reports\llm_event_benchmark.json
 reports\llm_event_gold_eval.json
 reports\llm_event_gold_report.md
 reports\llm_transformer_gold_eval.json
 reports\llm_transformer_gold_report.md
+reports\llm_decision_agent_eval.json
+reports\llm_decision_agent_report.md
 reports\delivery_verification.json
 reports\delivery_report.md
 ```

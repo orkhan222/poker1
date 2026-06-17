@@ -1,0 +1,25 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_smol
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: validate_llm_training_pipeline
+description: Validate supervised LLM event-normalization splits, evaluation metrics, and simulation-ready output contracts.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/validate_llm_training_pipeline.py
+  args:
+    config: config.yaml
+    train_file: data/train.jsonl
+    val_file: data/val.jsonl
+    test_file: data/test.jsonl
+    metrics_file: outputs/qlora_metrics.json
+    predictions_file: outputs/qlora_predictions.jsonl
+    report_out: reports/llm_training_validation_report.json
+    markdown_out: reports/llm_training_validation_report.md
+    simulation_out: outputs/simulation_events.jsonl
+    simulation_summary_out: reports/simulation_readiness.json

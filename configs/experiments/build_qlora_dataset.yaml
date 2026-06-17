@@ -1,0 +1,21 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: build_qlora_dataset
+description: Build supervised train, validation, and test JSONL splits for Phase 3 QLoRA event normalization.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/build_qlora_dataset.py
+  args:
+    source: evaluation/event_extraction_phase1.jsonl
+    output_dir: data
+    manifest_out: ${logging.reports_dir}/qlora_dataset_manifest.json
+    seed: ${training.seed}
+    no_shuffle_train: false
+

@@ -7,6 +7,14 @@ from typing import Any
 VALID_ACTIONS = ("fold", "call", "check", "bet", "raise", "all_in")
 
 
+def _cards_from_raw(raw: Any) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [card for card in raw.replace(",", " ").split() if card]
+    return [str(card) for card in raw if str(card).strip()]
+
+
 @dataclass
 class PredictionRequest:
     position: str
@@ -25,8 +33,8 @@ class PredictionRequest:
         return cls(
             position=str(raw.get("position") or raw.get("player_position") or "UNK"),
             street=str(raw.get("street") or "preflop").lower(),
-            hole_cards=[str(card) for card in raw.get("hole_cards", [])],
-            board_cards=[str(card) for card in raw.get("board_cards", [])],
+            hole_cards=_cards_from_raw(raw.get("hole_cards", [])),
+            board_cards=_cards_from_raw(raw.get("board_cards", [])),
             pot=float(raw.get("pot") or 0.0),
             to_call=float(raw.get("to_call") or 0.0),
             stack=float(raw.get("stack") or 0.0),

@@ -507,6 +507,7 @@ def load_training_examples(
     merge_all_in: bool = True,
     missing_hole_cards: str | None = None,
     include_hand_id: bool = False,
+    include_request: bool = False,
 ) -> list[Any]:
     actions_path = dataset_dir / "actions.csv"
     players_path = dataset_dir / "players.csv"
@@ -552,6 +553,7 @@ def load_training_examples(
         street_fold_count = 0
         players_acted: set[str] = set()
         last_aggressor_position = ""
+        street_history_events: list[dict[str, Any]] = []
 
         for row in sorted(action_rows, key=lambda item: safe_int(item.get("frame_id"))):
             action = normalize_action(row.get("action", ""))
@@ -571,6 +573,7 @@ def load_training_examples(
                 street_fold_count = 0
                 players_acted = set()
                 last_aggressor_position = ""
+                street_history_events = []
 
             amount = amount_near_frame(stack_contributions, used_events, hand_id, position, frame_id)
             highest_commit = max(committed_by_street.values(), default=0.0)
@@ -599,6 +602,7 @@ def load_training_examples(
                         stack=effective_stack or stack,
                         min_raise=min_raise,
                         player_count=player_counts_by_hand.get(hand_id, 6) or 6,
+                        betting_history=list(street_history_events),
                     )
                     features = request_to_features(request)
                     features.update(
@@ -623,7 +627,11 @@ def load_training_examples(
                     features["hole_cards_missing"] = 1.0 if hole_cards_missing else 0.0
                     features["hole_card_observed_ratio"] = min(len(hole_cards) / 2.0, 1.0)
                     features["board_card_observed_ratio"] = len(request.board_cards) / max(VISIBLE_BOARD_COUNTS.get(street, 0), 1) if street != "preflop" else 1.0
-                    if include_hand_id:
+                    if include_request and include_hand_id:
+                        examples.append((request, features, action, hand_id))
+                    elif include_request:
+                        examples.append((request, features, action))
+                    elif include_hand_id:
                         examples.append((features, action, hand_id))
                     else:
                         examples.append((features, action))
@@ -653,4 +661,13 @@ def load_training_examples(
                     street_check_count += 1
                 elif action == "fold":
                     street_fold_count += 1
+                street_history_events.append(
+                    {
+                        "position": position,
+                        "action": action,
+                        "amount": amount,
+                        "frame_id": frame_id,
+                        "street": street,
+                    }
+                )
     return examples

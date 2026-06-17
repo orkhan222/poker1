@@ -1,0 +1,20 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: inference_qlora_smoke
+description: Validate single-record Phase 3 event-normalization inference contract.
+task: command
+allow_failure: false
+command:
+  entrypoint: inference.py
+  args:
+    config: config.yaml
+    model_path: outputs/qwen25_qlora
+    text: Plyr3 ra1se $4.50
+    backend: parser
+

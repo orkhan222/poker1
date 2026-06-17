@@ -1,0 +1,35 @@
+{
+  "counts": {
+    "test": 25,
+    "train": 75,
+    "val": 20
+  },
+  "event_type_counts": {
+    "test": {
+      "card_event": 5,
+      "player_action": 15,
+      "pot_event": 5
+    },
+    "train": {
+      "card_event": 15,
+      "player_action": 30,
+      "pot_event": 5,
+      "unmatched": 25
+    },
+    "val": {
+      "card_event": 5,
+      "player_action": 5,
+      "pot_event": 5,
+      "unmatched": 5
+    }
+  },
+  "files": {
+    "test": "data/test.jsonl",
+    "train": "data/train.jsonl",
+    "val": "data/val.jsonl"
+  },
+  "output_dir": "data",
+  "seed": 42,
+  "source": "evaluation\\event_extraction_phase1.jsonl",
+  "status": "PASS"
+}

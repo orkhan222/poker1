@@ -1,0 +1,138 @@
+{
+  "$id": "event_schema_v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "expected": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "enum": [
+                "fold",
+                "call",
+                "check",
+                "bet",
+                "raise"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cards": {
+          "items": {
+            "pattern": "^[2-9TJQKA][cdhsCDHS]$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "event_type": {
+          "enum": [
+            "player_action",
+            "card_update",
+            "stack_update",
+            "unmatched"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_type",
+        "action",
+        "cards",
+        "amount"
+      ],
+      "type": "object"
+    },
+    "group_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "noise": {
+      "additionalProperties": true,
+      "properties": {
+        "severity": {
+          "maximum": 3,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "severity"
+      ],
+      "type": "object"
+    },
+    "parent_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "record": {
+      "additionalProperties": true,
+      "properties": {
+        "event_name": {
+          "type": "string"
+        },
+        "event_value": {
+          "type": "object"
+        },
+        "frame_id": {
+          "type": "integer"
+        },
+        "object_type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "frame_id",
+        "event_name",
+        "event_value"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "event_schema_v1",
+      "type": "string"
+    },
+    "split": {
+      "enum": [
+        "train",
+        "valid",
+        "test",
+        "unassigned"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "schema_version",
+    "record",
+    "expected",
+    "group_id",
+    "split"
+  ],
+  "title": "Poker Event Extraction Gold Row",
+  "type": "object"
+}

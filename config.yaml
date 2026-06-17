@@ -1,0 +1,64 @@
+seed: 42
+base_model: Qwen/Qwen2.5-1.5B-Instruct
+method: QLoRA
+quantization: 4-bit NF4
+dry_run: false
+
+data:
+  train_file: data/train.jsonl
+  val_file: data/val.jsonl
+  test_file: data/test.jsonl
+  max_train_examples: 0
+  max_val_examples: 0
+  max_test_examples: 0
+
+training:
+  lora_rank: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  learning_rate: 2.0e-4
+  epochs: 3
+  batch_size: 2
+  eval_batch_size: 2
+  gradient_accumulation_steps: 8
+  max_seq_len: 1024
+  warmup_ratio: 0.03
+  optimizer: paged_adamw_8bit
+  fp16_or_bf16: auto
+  save_steps: 100
+  eval_steps: 100
+  logging_steps: 20
+  device_map: auto
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+inference:
+  max_new_tokens: 128
+  temperature: 0.0
+  confidence_threshold: 0.0
+  device_map: auto
+
+validation:
+  min_train_rows: 1
+  min_val_rows: 1
+  min_test_rows: 1
+  min_dataset_schema_validity: 1.0
+  max_dominant_ratio: 0.85
+  min_accuracy: 0.0
+  min_macro_f1: 0.0
+  min_schema_validity_rate: 0.95
+  max_unmatched_rate: 1.0
+
+simulation:
+  min_confidence: 0.0
+  min_readiness_rate: 0.80
+
+output:
+  model_dir: outputs/qwen25_qlora
+  outputs_dir: outputs

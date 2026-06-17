@@ -21,7 +21,11 @@ runtime:
     - hydra-core
     - omegaconf
     - numpy
+    - pandas
+    - pydantic
     - scikit-learn
+    - datasets
+    - rapidfuzz
     - torch
     - transformers
 

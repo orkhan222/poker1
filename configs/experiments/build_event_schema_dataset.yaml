@@ -1,0 +1,26 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: build_event_schema_dataset
+description: Build the Phase 1 event schema dataset with corrupted OCR variants and grouped splits.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/build_event_schema_dataset.py
+  args:
+    gold: evaluation/event_extraction_gold.jsonl
+    out: evaluation/event_extraction_phase1.jsonl
+    schema_out: evaluation/event_schema_v1.json
+    splits_out: evaluation/event_extraction_phase1_splits.json
+    report_out: ${logging.reports_dir}/event_schema_dataset_report.json
+    markdown_out: ${logging.reports_dir}/event_schema_dataset_report.md
+    seed: ${training.seed}
+    corruptions_per_example: 4
+    train_ratio: 0.70
+    valid_ratio: 0.15
+    test_ratio: 0.15

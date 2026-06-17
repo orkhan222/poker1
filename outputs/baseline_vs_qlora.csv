@@ -1,0 +1,7 @@
+method,model,accuracy,macro_f1,schema_validity_rate,event_type_exact_match,action_exact_match,amount_exact_match,average_latency_ms,unmatched_rate
+deterministic_parser,-,1.0,1.0,1.0,1.0,1.0,1.0,14.75832799987984,0.0
+few_shot_5,heuristic_text,1.0,1.0,1.0,1.0,1.0,1.0,13.613592000183417,0.0
+few_shot_10,heuristic_text,1.0,1.0,1.0,1.0,1.0,1.0,13.668419999739854,0.0
+candidate_ranker,heuristic_text,1.0,1.0,1.0,1.0,1.0,1.0,15.18363600000157,0.0
+zero_shot,heuristic_text,0.96,0.7413793103448276,1.0,0.96,0.9333333333333332,1.0,14.449963999650208,0.04
+qwen25_qlora_contract_check,Qwen/Qwen2.5-1.5B-Instruct,1.0,1.0,1.0,1.0,1.0,1.0,17.865671999998085,0.0

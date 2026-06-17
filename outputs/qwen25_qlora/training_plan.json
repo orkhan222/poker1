@@ -1,0 +1,169 @@
+{
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "dataset": {
+    "dataset_contract": {
+      "class_balance": {
+        "test": {
+          "dominant_event_type": "player_action",
+          "dominant_ratio": 0.6,
+          "event_type_distribution": {
+            "card_event": 0.2,
+            "player_action": 0.6,
+            "pot_event": 0.2
+          },
+          "status": "PASS"
+        },
+        "train": {
+          "dominant_event_type": "player_action",
+          "dominant_ratio": 0.4,
+          "event_type_distribution": {
+            "card_event": 0.2,
+            "player_action": 0.4,
+            "pot_event": 0.06666666666666667,
+            "unmatched": 0.3333333333333333
+          },
+          "status": "PASS"
+        },
+        "val": {
+          "dominant_event_type": "player_action",
+          "dominant_ratio": 0.25,
+          "event_type_distribution": {
+            "card_event": 0.25,
+            "player_action": 0.25,
+            "pot_event": 0.25,
+            "unmatched": 0.25
+          },
+          "status": "PASS"
+        }
+      },
+      "leakage": {
+        "overlap_count": 0,
+        "overlaps": []
+      },
+      "messages": [],
+      "splits": {
+        "test": {
+          "action_counts": {
+            "check": 5,
+            "fold": 5,
+            "small_blind": 5
+          },
+          "duplicate_group_count": 5,
+          "duplicate_raw_text_count": 5,
+          "event_type_counts": {
+            "card_event": 5,
+            "player_action": 15,
+            "pot_event": 5
+          },
+          "exists": true,
+          "invalid_row_count": 0,
+          "invalid_rows": [],
+          "mean_label_confidence": 1.0,
+          "path": "data\\test.jsonl",
+          "rows": 25,
+          "schema_validity_rate": 1.0,
+          "sha256": "9ca67e083e4a83d3ce68968773721e978506d06309de06f6e38b5d6ef3961a13",
+          "valid_rows": 25
+        },
+        "train": {
+          "action_counts": {
+            "all_in": 4,
+            "bet": 5,
+            "call": 5,
+            "fold": 5,
+            "raise": 11
+          },
+          "duplicate_group_count": 15,
+          "duplicate_raw_text_count": 15,
+          "event_type_counts": {
+            "card_event": 15,
+            "player_action": 30,
+            "pot_event": 5,
+            "unmatched": 25
+          },
+          "exists": true,
+          "invalid_row_count": 0,
+          "invalid_rows": [],
+          "mean_label_confidence": 1.0,
+          "path": "data\\train.jsonl",
+          "rows": 75,
+          "schema_validity_rate": 1.0,
+          "sha256": "8528ad8b1b2d7bb60d64031632185a1ac2712779e72a83067fd6f322abc4361f",
+          "valid_rows": 75
+        },
+        "val": {
+          "action_counts": {
+            "call": 5
+          },
+          "duplicate_group_count": 4,
+          "duplicate_raw_text_count": 4,
+          "event_type_counts": {
+            "card_event": 5,
+            "player_action": 5,
+            "pot_event": 5,
+            "unmatched": 5
+          },
+          "exists": true,
+          "invalid_row_count": 0,
+          "invalid_rows": [],
+          "mean_label_confidence": 1.0,
+          "path": "data\\val.jsonl",
+          "rows": 20,
+          "schema_validity_rate": 1.0,
+          "sha256": "034a9b7dc8d51997719f958cbff1d31947a4dff938480f82912d5462a02bf8bb",
+          "valid_rows": 20
+        }
+      },
+      "status": "PASS"
+    },
+    "train_file": "data/train.jsonl",
+    "train_rows": 75,
+    "val_file": "data/val.jsonl",
+    "val_rows": 20
+  },
+  "method": "QLoRA",
+  "quantization": "4-bit NF4",
+  "simulation": {
+    "min_confidence": 0.0,
+    "min_readiness_rate": 0.8
+  },
+  "status": "validated",
+  "training": {
+    "batch_size": 2,
+    "device_map": "auto",
+    "epochs": 3,
+    "eval_batch_size": 2,
+    "eval_steps": 100,
+    "fp16_or_bf16": "auto",
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 0.0002,
+    "logging_steps": 20,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "lora_rank": 8,
+    "max_seq_len": 1024,
+    "optimizer": "paged_adamw_8bit",
+    "save_steps": 100,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "warmup_ratio": 0.03
+  },
+  "validation": {
+    "max_dominant_ratio": 0.85,
+    "max_unmatched_rate": 1.0,
+    "min_accuracy": 0.0,
+    "min_dataset_schema_validity": 1.0,
+    "min_macro_f1": 0.0,
+    "min_schema_validity_rate": 0.95,
+    "min_test_rows": 1,
+    "min_train_rows": 1,
+    "min_val_rows": 1
+  }
+}

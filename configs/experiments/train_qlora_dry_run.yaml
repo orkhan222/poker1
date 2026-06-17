@@ -1,0 +1,23 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_smol
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: train_qlora_dry_run
+description: Validate Phase 3 QLoRA training configuration and dataset contract without loading model weights.
+task: command
+allow_failure: false
+command:
+  entrypoint: train_qlora.py
+  args:
+    config: config.yaml
+    train_file: data/train.jsonl
+    val_file: data/val.jsonl
+    output_dir: outputs/qwen25_qlora
+    dry_run: true
+    max_train_examples: 0
+    max_val_examples: 0
+

@@ -1,0 +1,7 @@
+name: text_decision_local
+provider: heuristic_text
+mode: candidate_ranker
+model_id: local_scoring_policy
+device: cpu
+max_new_tokens: 64
+temperature: 0.0
