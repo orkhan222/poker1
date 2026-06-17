@@ -1,0 +1,25 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: evaluate_hybrid_production
+description: Evaluate the production parser-first event normalizer with lazy QLoRA fallback.
+task: command
+allow_failure: false
+command:
+  entrypoint: evaluate_qlora.py
+  args:
+    config: config.yaml
+    model_path: outputs/qwen25_qlora
+    test_file: data/test.jsonl
+    outputs_dir: outputs
+    backend: hybrid
+    baseline_csv: ${logging.reports_dir}/phase2_event_benchmark_results.csv
+    max_examples: 0
+    confidence_threshold: 0.0
+    max_new_tokens: 128
+

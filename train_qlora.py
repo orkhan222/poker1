@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import sys
 from pathlib import Path
@@ -124,47 +125,91 @@ def prepare_dataset(cfg: dict[str, Any], tokenizer):
     return data.map(lambda row: format_training_row(row, eos_token=eos_token), remove_columns=data["train"].column_names)
 
 
+def trainer_precision_flags(precision_mode: str) -> dict[str, bool]:
+    import torch
+
+    requested = str(precision_mode or "auto").lower()
+    if requested == "bf16":
+        return {"fp16": False, "bf16": torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8}
+    if requested == "fp16":
+        return {"fp16": torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 7, "bf16": False}
+    return {"fp16": torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 7, "bf16": False}
+
+
+def cast_trainable_parameters_to_fp32(model: Any) -> None:
+    import torch
+
+    low_precision = {torch.float16, torch.bfloat16}
+    for parameter in model.parameters():
+        if parameter.requires_grad and parameter.dtype in low_precision:
+            parameter.data = parameter.data.to(torch.float32)
+
+
 def run_training(cfg: dict[str, Any]) -> dict[str, Any]:
     train_cfg = cfg["training"]
     tokenizer = load_tokenizer(cfg["base_model"])
     model, lora_config = load_qlora_training_model(cfg["base_model"], train_cfg)
     dataset = prepare_dataset(cfg, tokenizer)
 
-    from transformers import TrainingArguments
+    from trl import SFTConfig
     from trl import SFTTrainer
 
-    args = TrainingArguments(
-        output_dir=cfg["output"]["model_dir"],
-        num_train_epochs=float(train_cfg["epochs"]),
-        per_device_train_batch_size=int(train_cfg["batch_size"]),
-        per_device_eval_batch_size=int(train_cfg.get("eval_batch_size", train_cfg["batch_size"])),
-        gradient_accumulation_steps=int(train_cfg["gradient_accumulation_steps"]),
-        learning_rate=float(train_cfg["learning_rate"]),
-        warmup_ratio=float(train_cfg["warmup_ratio"]),
-        logging_steps=int(train_cfg["logging_steps"]),
-        eval_steps=int(train_cfg["eval_steps"]),
-        save_steps=int(train_cfg["save_steps"]),
-        evaluation_strategy="steps",
-        save_strategy="steps",
-        optim=str(train_cfg["optimizer"]),
-        fp16=str(train_cfg.get("fp16_or_bf16", "auto")).lower() in {"auto", "fp16"},
-        bf16=str(train_cfg.get("fp16_or_bf16", "auto")).lower() == "bf16",
-        report_to=[],
-        seed=int(cfg["seed"]),
-        data_seed=int(cfg["seed"]),
-        remove_unused_columns=False,
-    )
-    trainer = SFTTrainer(
-        model=model,
-        tokenizer=tokenizer,
-        peft_config=lora_config,
-        args=args,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"],
-        dataset_text_field="text",
-        max_seq_length=int(train_cfg["max_seq_len"]),
-        packing=False,
-    )
+    sft_params = inspect.signature(SFTConfig.__init__).parameters
+    strategy_key = "eval_strategy" if "eval_strategy" in sft_params else "evaluation_strategy"
+    precision_mode = str(train_cfg.get("fp16_or_bf16", "auto")).lower()
+    precision_flags = trainer_precision_flags(precision_mode)
+    sft_kwargs: dict[str, Any] = {
+        "output_dir": cfg["output"]["model_dir"],
+        "num_train_epochs": float(train_cfg["epochs"]),
+        "per_device_train_batch_size": int(train_cfg["batch_size"]),
+        "per_device_eval_batch_size": int(train_cfg.get("eval_batch_size", train_cfg["batch_size"])),
+        "gradient_accumulation_steps": int(train_cfg["gradient_accumulation_steps"]),
+        "learning_rate": float(train_cfg["learning_rate"]),
+        "warmup_ratio": float(train_cfg["warmup_ratio"]),
+        "logging_steps": int(train_cfg["logging_steps"]),
+        "eval_steps": int(train_cfg["eval_steps"]),
+        "save_steps": int(train_cfg["save_steps"]),
+        strategy_key: "steps",
+        "save_strategy": "steps",
+        "save_total_limit": int(train_cfg.get("save_total_limit", 2)),
+        "optim": str(train_cfg["optimizer"]),
+        "fp16": precision_flags["fp16"],
+        "bf16": precision_flags["bf16"],
+        "report_to": [],
+        "seed": int(cfg["seed"]),
+        "data_seed": int(cfg["seed"]),
+        "remove_unused_columns": False,
+        "gradient_checkpointing": bool(train_cfg.get("gradient_checkpointing", True)),
+        "torch_empty_cache_steps": int(train_cfg.get("torch_empty_cache_steps", 1)),
+        "dataloader_pin_memory": False,
+        "auto_find_batch_size": bool(train_cfg.get("auto_find_batch_size", True)),
+        "dataset_text_field": "text",
+        "max_length": int(train_cfg["max_seq_len"]),
+        "packing": False,
+    }
+    args = SFTConfig(**{key: value for key, value in sft_kwargs.items() if key in sft_params})
+
+    trainer_params = inspect.signature(SFTTrainer.__init__).parameters
+    trainer_kwargs: dict[str, Any] = {
+        "model": model,
+        "peft_config": lora_config,
+        "args": args,
+        "train_dataset": dataset["train"],
+        "eval_dataset": dataset["validation"],
+    }
+    if "processing_class" in trainer_params:
+        trainer_kwargs["processing_class"] = tokenizer
+    elif "tokenizer" in trainer_params:
+        trainer_kwargs["tokenizer"] = tokenizer
+    if "dataset_text_field" in trainer_params:
+        trainer_kwargs["dataset_text_field"] = "text"
+    if "max_seq_length" in trainer_params:
+        trainer_kwargs["max_seq_length"] = int(train_cfg["max_seq_len"])
+    if "packing" in trainer_params:
+        trainer_kwargs["packing"] = False
+
+    trainer = SFTTrainer(**trainer_kwargs)
+    cast_trainable_parameters_to_fp32(trainer.model)
     train_result = trainer.train()
     trainer.save_model(cfg["output"]["model_dir"])
     tokenizer.save_pretrained(cfg["output"]["model_dir"])

@@ -1,0 +1,64 @@
+{
+  "accuracy": 0.4,
+  "action_exact_match": 0.3333333333333333,
+  "adapter_loaded": true,
+  "adapter_path": "outputs\\qwen25_qlora",
+  "amount_exact_match": 0.0,
+  "amount_exact_match_all": 0.6,
+  "average_latency_ms": 14860.38150400098,
+  "card_exact_match": 1.0,
+  "event_type_counts": {
+    "card_event": 5,
+    "player_action": 15,
+    "pot_event": 5
+  },
+  "event_type_exact_match": 0.52,
+  "examples": 25,
+  "macro_f1": 0.420995670995671,
+  "method": "qwen25_qlora",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "peak_memory_mb": 0.44112682342529297,
+  "per_event_type": {
+    "card_event": {
+      "f1": 0.7142857142857143,
+      "precision": 0.5555555555555556,
+      "recall": 1.0,
+      "support": 5
+    },
+    "dealer_event": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 0
+    },
+    "player_action": {
+      "f1": 0.6363636363636364,
+      "precision": 1.0,
+      "recall": 0.4666666666666667,
+      "support": 15
+    },
+    "pot_event": {
+      "f1": 0.3333333333333333,
+      "precision": 1.0,
+      "recall": 0.2,
+      "support": 5
+    },
+    "unmatched": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 0
+    }
+  },
+  "precision_macro": 0.6388888888888888,
+  "predicted_event_type_counts": {
+    "card_event": 9,
+    "player_action": 7,
+    "pot_event": 1,
+    "unmatched": 8
+  },
+  "recall_macro": 0.4166666666666667,
+  "schema_validity_rate": 0.84,
+  "test_file": "data\\test.jsonl",
+  "unmatched_rate": 0.32
+}

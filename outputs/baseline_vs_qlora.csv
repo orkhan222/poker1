@@ -4,4 +4,4 @@ few_shot_5,heuristic_text,1.0,1.0,1.0,1.0,1.0,1.0,13.613592000183417,0.0
 few_shot_10,heuristic_text,1.0,1.0,1.0,1.0,1.0,1.0,13.668419999739854,0.0
 candidate_ranker,heuristic_text,1.0,1.0,1.0,1.0,1.0,1.0,15.18363600000157,0.0
 zero_shot,heuristic_text,0.96,0.7413793103448276,1.0,0.96,0.9333333333333332,1.0,14.449963999650208,0.04
-qwen25_qlora_contract_check,Qwen/Qwen2.5-1.5B-Instruct,1.0,1.0,1.0,1.0,1.0,1.0,17.865671999998085,0.0
+hybrid_parser_qlora,Qwen/Qwen2.5-1.5B-Instruct,1.0,1.0,1.0,1.0,1.0,1.0,13.049280000122963,0.0

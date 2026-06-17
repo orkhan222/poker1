@@ -44,10 +44,12 @@ def compute_dtype(dtype_name: str):
 
     requested = str(dtype_name or "auto").lower()
     if requested == "bf16":
-        return torch.bfloat16
+        if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8:
+            return torch.bfloat16
+        return torch.float16
     if requested == "fp16":
         return torch.float16
-    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+    if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8 and torch.cuda.is_bf16_supported():
         return torch.bfloat16
     return torch.float16
 
@@ -76,6 +78,7 @@ def load_qlora_training_model(model_id: str, cfg: dict[str, Any]):
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=quantization,
+        torch_dtype=dtype,
         device_map=cfg.get("device_map", "auto"),
         trust_remote_code=True,
     )
@@ -99,15 +102,22 @@ def load_adapter_for_inference(
     device_map: str = "auto",
     dtype_name: str = "auto",
 ):
-    import torch
     from peft import PeftModel
-    from transformers import AutoModelForCausalLM
+    from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
     dtype = compute_dtype(dtype_name)
+    quantization = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=dtype,
+    )
     base = AutoModelForCausalLM.from_pretrained(
         base_model,
+        quantization_config=quantization,
         torch_dtype=dtype,
         device_map=device_map,
+        low_cpu_mem_usage=True,
         trust_remote_code=True,
     )
     model = PeftModel.from_pretrained(base, str(model_path))

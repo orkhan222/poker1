@@ -237,6 +237,7 @@ evaluate_qlora.py
 inference.py
 src\dataset.py
 src\formatting.py
+src\hybrid_router.py
 src\metrics.py
 src\model_loader.py
 src\prompts.py
@@ -273,10 +274,22 @@ Full QLoRA training on a CUDA-capable machine:
 .\.venv\Scripts\python.exe train_qlora.py --config config.yaml
 ```
 
-Evaluate a trained adapter and compare it with Phase 2 baselines:
+Evaluate the trained adapter directly:
 
 ```powershell
 .\.venv\Scripts\python.exe evaluate_qlora.py --config config.yaml --model-path outputs/qwen25_qlora --test-file data/test.jsonl
+```
+
+Evaluate the production parser-first system with lazy QLoRA fallback:
+
+```powershell
+.\.venv\Scripts\python.exe evaluate_qlora.py --config config.yaml --model-path outputs/qwen25_qlora --test-file data/test.jsonl --backend hybrid
+```
+
+The same production evaluation can be launched through Hydra:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=evaluate_hybrid_production python_executable=.venv/Scripts/python.exe
 ```
 
 Generated evaluation outputs:
@@ -285,6 +298,8 @@ Generated evaluation outputs:
 outputs\qlora_predictions.jsonl
 outputs\qlora_metrics.json
 outputs\baseline_vs_qlora.csv
+outputs\qwen25_qlora_direct_metrics.json
+outputs\qwen25_qlora_direct_predictions.jsonl
 ```
 
 Validate the full LLM training, evaluation, and simulation-readiness contract:

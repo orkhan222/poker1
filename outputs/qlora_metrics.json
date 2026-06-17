@@ -1,11 +1,12 @@
 {
   "accuracy": 1.0,
   "action_exact_match": 1.0,
+  "adapter_available": true,
   "adapter_loaded": false,
   "adapter_path": "outputs\\qwen25_qlora",
   "amount_exact_match": 1.0,
   "amount_exact_match_all": 1.0,
-  "average_latency_ms": 17.865671999998085,
+  "average_latency_ms": 13.049280000122963,
   "card_exact_match": 1.0,
   "event_type_counts": {
     "card_event": 5,
@@ -15,9 +16,9 @@
   "event_type_exact_match": 1.0,
   "examples": 25,
   "macro_f1": 1.0,
-  "method": "qwen25_qlora_contract_check",
+  "method": "hybrid_parser_qlora",
   "model": "Qwen/Qwen2.5-1.5B-Instruct",
-  "peak_memory_mb": 0.10649490356445312,
+  "peak_memory_mb": 0.111602783203125,
   "per_event_type": {
     "card_event": {
       "f1": 1.0,
@@ -56,7 +57,11 @@
     "player_action": 15,
     "pot_event": 5
   },
+  "production_ready": true,
   "recall_macro": 1.0,
+  "route_counts": {
+    "parser": 25
+  },
   "schema_validity_rate": 1.0,
   "test_file": "data\\test.jsonl",
   "unmatched_rate": 0.0

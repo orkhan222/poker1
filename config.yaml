@@ -44,6 +44,11 @@ inference:
   confidence_threshold: 0.0
   device_map: auto
 
+hybrid:
+  parser_min_confidence: 0.80
+  model_min_confidence: 0.50
+  allow_model_override: false
+
 validation:
   min_train_rows: 1
   min_val_rows: 1
