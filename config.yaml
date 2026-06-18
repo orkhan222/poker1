@@ -49,6 +49,12 @@ hybrid:
   model_min_confidence: 0.50
   allow_model_override: false
 
+agent:
+  selected_architecture: hybrid_parser_qlora
+  approval_status: proposed_for_stakeholder_approval
+  decision_report: reports/llm_agent_architecture_decision.md
+  comparison_report: reports/llm_agent_architecture_comparison.csv
+
 validation:
   min_train_rows: 1
   min_val_rows: 1

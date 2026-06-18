@@ -64,6 +64,7 @@ an autonomous poker decision system:
 
 ```text
 docs\llm_agent_architecture.md
+reports\llm_agent_architecture_decision.md
 ```
 
 The recommended path is a schema-routed hybrid: deterministic parsing for
@@ -100,6 +101,8 @@ llm_event_benchmark
 llm_event_gold_eval
 llm_transformer_gold_eval
 llm_decision_baseline
+compare_llm_agent_architectures
+evaluate_hybrid_production
 verify_delivery
 ```
 
@@ -113,6 +116,7 @@ Useful commands:
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_event_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_transformer_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=compare_llm_agent_architectures python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=verify_delivery python_executable=.venv/Scripts/python.exe
 ```
 
@@ -213,6 +217,42 @@ instruction models, switch the backend and model IDs:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark experiments.command.args.backend=transformers "experiments.command.args.model_ids=qwen2_5_1_5b,qwen3_1_7b,smollm2_1_7b" python_executable=.venv/Scripts/python.exe
+```
+
+## LLM Agent Architecture Decision
+
+The production LLM agent is implemented as a parser-first event-normalization
+agent with lazy QLoRA fallback. The trained Qwen2.5 QLoRA adapter is retained
+as a model artifact and research baseline, but direct free-form extraction is
+not selected for production because it does not pass the schema and simulation
+readiness gates.
+
+Run the architecture comparison:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\compare_llm_agent_architectures.py --config config.yaml
+```
+
+Run the same comparison through Hydra:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=compare_llm_agent_architectures python_executable=.venv/Scripts/python.exe
+```
+
+Generated files:
+
+```text
+reports\llm_agent_architecture_comparison.csv
+reports\llm_agent_architecture_decision.json
+reports\llm_agent_architecture_decision.md
+outputs\llm_agent_architecture_predictions.jsonl
+```
+
+Current proposed architecture:
+
+```text
+selected_architecture=hybrid_parser_qlora
+approval_status=proposed_for_stakeholder_approval
 ```
 
 ## Text Event Extraction Results

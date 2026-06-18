@@ -1,0 +1,25 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: compare_llm_agent_architectures
+description: Compare event-normalization architectures and produce the proposed LLM agent decision report.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/compare_llm_agent_architectures.py
+  args:
+    config: config.yaml
+    test_file: data/test.jsonl
+    model_path: outputs/qwen25_qlora
+    direct_metrics: outputs/qwen25_qlora_direct_metrics.json
+    out_csv: reports/llm_agent_architecture_comparison.csv
+    out_json: reports/llm_agent_architecture_decision.json
+    out_md: reports/llm_agent_architecture_decision.md
+    predictions_out: outputs/llm_agent_architecture_predictions.jsonl
+    max_examples: 0
+
