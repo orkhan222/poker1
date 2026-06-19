@@ -18,9 +18,10 @@ if str(ROOT) not in sys.path:
 
 from poker_agent.agents import MLPolicyAgent
 from poker_agent.api_contract import api_contract
+from poker_agent.delivery_readiness import summarize_delivery_readiness
 from poker_agent.model import load_policy
 from poker_agent.schemas import PredictionRequest
-from poker_agent.service import health_payload, resolve_model_path
+from poker_agent.service import health_payload, resolve_model_path, scope_alignment_json, strategy_readiness_json
 
 
 @dataclass
@@ -90,6 +91,8 @@ def require_files(root: Path) -> str:
         "configs/experiments/llm_decision_baseline.yaml",
         "configs/experiments/llm_context_ablation.yaml",
         "configs/experiments/llm_training_delivery.yaml",
+        "configs/experiments/policy_acceptance.yaml",
+        "configs/experiments/pdf_scope_delivery.yaml",
         "configs/experiments/verify_delivery.yaml",
         "Dockerfile",
         "docker-compose.yml",
@@ -120,6 +123,12 @@ def require_files(root: Path) -> str:
         "reports/llm_training_delivery_report.json",
         "reports/llm_training_delivery_report.md",
         "reports/simulation_readiness.json",
+        "reports/policy_acceptance.json",
+        "reports/policy_acceptance.md",
+        "reports/pdf_scope_alignment.json",
+        "reports/pdf_scope_alignment.md",
+        "reports/pdf_scope_model_comparison.csv",
+        "reports/delivery_readiness.json",
         "reports/delivery_report.md",
         "evaluation/event_extraction_gold.jsonl",
         "evaluation/event_schema_v1.json",
@@ -140,11 +149,17 @@ def require_files(root: Path) -> str:
         "scripts/evaluate_llm_decision_agent.py",
         "scripts/evaluate_llm_context_ablation.py",
         "scripts/llm_training_delivery.py",
+        "scripts/evaluate_policy_acceptance.py",
+        "scripts/pdf_scope_delivery.py",
+        "scripts/build_delivery_readiness.py",
         "scripts/production_gate.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
         "poker_agent/service.py",
         "poker_agent/api_contract.py",
+        "poker_agent/delivery_scope.py",
+        "poker_agent/delivery_readiness.py",
+        "poker_agent/strategy_readiness.py",
         "poker_agent/action_planning.py",
         "poker_agent/agents.py",
         "poker_agent/features.py",
@@ -174,6 +189,9 @@ def compile_sources(root: Path) -> str:
     source_files = [
         "poker_agent/action_planning.py",
         "poker_agent/api_contract.py",
+        "poker_agent/delivery_scope.py",
+        "poker_agent/delivery_readiness.py",
+        "poker_agent/strategy_readiness.py",
         "poker_agent/agents.py",
         "poker_agent/evaluator.py",
         "poker_agent/event_schema.py",
@@ -206,7 +224,9 @@ def compile_sources(root: Path) -> str:
         "scripts/llm_transformer_gold_eval.py",
         "scripts/evaluate_llm_decision_agent.py",
         "scripts/evaluate_llm_context_ablation.py",
+        "scripts/evaluate_policy_acceptance.py",
         "scripts/llm_training_delivery.py",
+        "scripts/pdf_scope_delivery.py",
         "scripts/production_gate.py",
         "scripts/research_experiment.py",
         "scripts/run_hydra_experiment.py",
@@ -310,6 +330,9 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     gold_eval = root / "reports" / "llm_event_gold_eval.json"
     transformer_eval = root / "reports" / "llm_transformer_gold_eval.json"
     decision_eval = root / "reports" / "llm_decision_agent_eval.json"
+    policy_acceptance = root / "reports" / "policy_acceptance.json"
+    scope_alignment = root / "reports" / "pdf_scope_alignment.json"
+    scope_comparison = root / "reports" / "pdf_scope_model_comparison.csv"
     if "findings" not in audit:
         raise AssertionError("Audit report has no findings key")
     if repo_audit.get("status") != "PASS":
@@ -325,6 +348,56 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
         raise AssertionError(f"Invalid gate status: {gate.get('status')}")
     if require_gate_pass and gate.get("status") != "PASS":
         raise AssertionError("Production gate did not pass")
+    readiness = gate.get("strategy_readiness")
+    if not readiness:
+        raise AssertionError("Production gate report is missing strategy_readiness")
+    if gate.get("status") == "FAIL":
+        if readiness.get("strategy_policy_status") != "NOT_APPROVED":
+            raise AssertionError(f"Failing production gate must expose NOT_APPROVED readiness: {readiness}")
+        if not readiness.get("blocking_reasons"):
+            raise AssertionError("Failing production gate must expose blocking reasons")
+    service_readiness = strategy_readiness_json()
+    if service_readiness.get("strategy_policy_status") != readiness.get("strategy_policy_status"):
+        raise AssertionError("Strategy readiness endpoint does not match production gate report")
+    delivery_readiness_report = root / "reports" / "delivery_readiness.json"
+    if not delivery_readiness_report.exists():
+        raise AssertionError("Delivery readiness report is missing")
+    delivery_readiness = json.loads(delivery_readiness_report.read_text(encoding="utf-8"))
+    if delivery_readiness.get("service_delivery_status") != "READY":
+        raise AssertionError(f"Service is not marked ready for handoff: {delivery_readiness}")
+    if gate.get("status") == "FAIL" and delivery_readiness.get("overall_status") != "READY_FOR_TECHNICAL_HANDOFF":
+        raise AssertionError(f"Failing strategy gate must keep handoff-only status: {delivery_readiness}")
+    live_delivery_readiness = summarize_delivery_readiness(root)
+    if live_delivery_readiness.get("strategy_policy_status") != delivery_readiness.get("strategy_policy_status"):
+        raise AssertionError("Delivery readiness report does not match live strategy readiness")
+    if not policy_acceptance.exists():
+        raise AssertionError("Policy acceptance report is missing")
+    acceptance_payload = json.loads(policy_acceptance.read_text(encoding="utf-8"))
+    if acceptance_payload.get("overall_status") not in {"PASS", "FAIL"}:
+        raise AssertionError(f"Invalid policy acceptance status: {acceptance_payload.get('overall_status')}")
+    for key in ("human_action_alignment", "simulation", "human_likeness"):
+        if key not in acceptance_payload:
+            raise AssertionError(f"Policy acceptance report missing {key}")
+    if not scope_alignment.exists():
+        raise AssertionError("PDF/DOCX scope alignment report is missing")
+    scope_payload = json.loads(scope_alignment.read_text(encoding="utf-8"))
+    if scope_payload.get("overall_status") not in {"PASS", "FAIL", "PARTIAL"}:
+        raise AssertionError(f"Invalid PDF/DOCX scope status: {scope_payload.get('overall_status')}")
+    required_scope_phases = {
+        "phase_1_two_baselines",
+        "phase_2_selection_and_optimization",
+        "phase_3_evaluation",
+        "phase_4_deployment",
+    }
+    if not required_scope_phases.issubset(set(scope_payload.get("phase_statuses", {}))):
+        raise AssertionError("PDF/DOCX scope report does not cover all project phases")
+    if not scope_payload.get("model_comparison"):
+        raise AssertionError("PDF/DOCX scope report has no model comparison")
+    if not scope_comparison.exists() or scope_comparison.stat().st_size <= 0:
+        raise AssertionError("PDF/DOCX model comparison CSV is missing or empty")
+    live_scope = scope_alignment_json()
+    if live_scope.get("overall_status") != scope_payload.get("overall_status"):
+        raise AssertionError("Scope alignment endpoint does not match report")
     if not event_schema_report.exists():
         raise AssertionError("Phase 1 event schema dataset report is missing")
     schema_payload = json.loads(event_schema_report.read_text(encoding="utf-8"))
@@ -339,6 +412,8 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     benchmark_detail = (
         f", event_schema_rows={schema_payload.get('examples')}"
         f", event_schema_groups={schema_payload.get('groups')}"
+        f", policy_acceptance={acceptance_payload.get('overall_status')}"
+        f", scope_alignment={scope_payload.get('overall_status')}"
     )
     if not phase2_report.exists():
         raise AssertionError("Phase 2 event-normalization benchmark report is missing")
@@ -503,6 +578,8 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "configs/experiments/llm_decision_baseline.yaml",
         "configs/experiments/llm_context_ablation.yaml",
         "configs/experiments/llm_training_delivery.yaml",
+        "configs/experiments/policy_acceptance.yaml",
+        "configs/experiments/pdf_scope_delivery.yaml",
         "evaluation/event_extraction_gold.jsonl",
         "evaluation/event_schema_v1.json",
         "evaluation/event_extraction_phase1.jsonl",
@@ -530,6 +607,12 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "reports/llm_training_delivery_report.json",
         "reports/llm_training_delivery_report.md",
         "reports/simulation_readiness.json",
+        "reports/policy_acceptance.json",
+        "reports/policy_acceptance.md",
+        "reports/pdf_scope_alignment.json",
+        "reports/pdf_scope_alignment.md",
+        "reports/pdf_scope_model_comparison.csv",
+        "reports/delivery_readiness.json",
         "reports/delivery_report.md",
         "scripts/benchmark.py",
         "scripts/check_repo_hygiene.py",
@@ -540,10 +623,16 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "scripts/llm_transformer_gold_eval.py",
         "scripts/evaluate_llm_decision_agent.py",
         "scripts/evaluate_llm_context_ablation.py",
+        "scripts/evaluate_policy_acceptance.py",
         "scripts/llm_training_delivery.py",
+        "scripts/pdf_scope_delivery.py",
+        "scripts/build_delivery_readiness.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
         "poker_agent/api_contract.py",
+        "poker_agent/delivery_scope.py",
+        "poker_agent/delivery_readiness.py",
+        "poker_agent/strategy_readiness.py",
         "poker_agent/event_schema.py",
         "poker_agent/event_normalization/__init__.py",
         "poker_agent/event_normalization/backends.py",

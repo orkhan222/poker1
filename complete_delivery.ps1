@@ -109,6 +109,12 @@ $DecisionContextAblationJson = Join-Path $ReportsDir "llm_context_ablation.json"
 $DecisionContextAblationMarkdown = Join-Path $ReportsDir "llm_context_ablation.md"
 $LLMTrainingDeliveryJson = Join-Path $ReportsDir "llm_training_delivery_report.json"
 $LLMTrainingDeliveryMarkdown = Join-Path $ReportsDir "llm_training_delivery_report.md"
+$PolicyAcceptanceJson = Join-Path $ReportsDir "policy_acceptance.json"
+$PolicyAcceptanceMarkdown = Join-Path $ReportsDir "policy_acceptance.md"
+$ScopeAlignmentJson = Join-Path $ReportsDir "pdf_scope_alignment.json"
+$ScopeAlignmentMarkdown = Join-Path $ReportsDir "pdf_scope_alignment.md"
+$ScopeComparisonCsv = Join-Path $ReportsDir "pdf_scope_model_comparison.csv"
+$DeliveryReadinessReport = Join-Path $ReportsDir "delivery_readiness.json"
 
 Write-Host "1/8 Auditing dataset..." -ForegroundColor Green
 & $Python scripts\audit_dataset.py `
@@ -233,6 +239,36 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "LLM training delivery report failed."
 }
 
+Write-Host "5f/8 Evaluating policy acceptance gates..." -ForegroundColor Green
+& $Python scripts\evaluate_policy_acceptance.py `
+    --dataset $Dataset `
+    --model $ModelOut `
+    --out $PolicyAcceptanceJson `
+    --report-out $PolicyAcceptanceMarkdown `
+    --max-examples 5000 `
+    --missing-hole-cards drop `
+    --strategy-selector ev_calibrated
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Policy acceptance evaluation failed."
+}
+
+Write-Host "5g/8 Building PDF/DOCX scope alignment report..." -ForegroundColor Green
+& $Python scripts\pdf_scope_delivery.py `
+    --dataset $Dataset `
+    --model $ModelOut `
+    --max-examples 250 `
+    --missing-hole-cards drop `
+    --seed 42 `
+    --event-agent-report (Join-Path $ReportsDir "llm_agent_architecture_decision.json") `
+    --production-gate $GateReport `
+    --acceptance-report $PolicyAcceptanceJson `
+    --out $ScopeAlignmentJson `
+    --report-out $ScopeAlignmentMarkdown `
+    --comparison-out $ScopeComparisonCsv
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "PDF/DOCX scope alignment report failed."
+}
+
 Write-Host "6/8 Auditing repository..." -ForegroundColor Green
 & $Python scripts\audit_repository.py `
     --root $ProjectRoot `
@@ -245,6 +281,14 @@ Write-Host "7/8 Checking repository hygiene..." -ForegroundColor Green
     --json-out $RepoHygieneReport
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Repository hygiene check failed. Remove local tool metadata or delivery-only comments before rebuilding the ZIP."
+}
+
+Write-Host "7b/8 Building delivery readiness summary..." -ForegroundColor Green
+& $Python scripts\build_delivery_readiness.py `
+    --project-root $ProjectRoot `
+    --out $DeliveryReadinessReport
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Delivery readiness summary failed."
 }
 
 Remove-DeliveryArtifacts -Root $ProjectRoot
@@ -299,4 +343,10 @@ Write-Host "Decision context ablation: $DecisionContextAblationJson"
 Write-Host "Decision context report: $DecisionContextAblationMarkdown"
 Write-Host "LLM training delivery: $LLMTrainingDeliveryJson"
 Write-Host "LLM training report: $LLMTrainingDeliveryMarkdown"
+Write-Host "Policy acceptance: $PolicyAcceptanceJson"
+Write-Host "Policy acceptance report: $PolicyAcceptanceMarkdown"
+Write-Host "Scope alignment: $ScopeAlignmentJson"
+Write-Host "Scope alignment report: $ScopeAlignmentMarkdown"
+Write-Host "Scope model comparison: $ScopeComparisonCsv"
+Write-Host "Delivery readiness: $DeliveryReadinessReport"
 Write-Host "ZIP: $ZipPath"

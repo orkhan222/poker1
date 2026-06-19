@@ -79,7 +79,7 @@ DELIVERY_STATUS_FIELDS: dict[str, dict[str, str]] = {
     },
     "production_gate=FAIL": {
         "meaning": "The software delivery passed, but the strategic poker policy is not approved as a production strategy model.",
-        "implication": "The service and pipeline are usable, while model quality and dataset coverage remain explicit research risks.",
+        "implication": "The service and pipeline are usable for technical handoff; strategic deployment remains blocked until the readiness gates pass.",
     },
 }
 
@@ -119,6 +119,29 @@ def api_contract() -> dict[str, Any]:
         "contract_version": CONTRACT_VERSION,
         "prediction_response": prediction_response_contract(),
         "delivery_status": delivery_status_contract(),
+        "strategy_readiness": {
+            "endpoint": "/strategy-readiness.json",
+            "status_values": ["APPROVED", "NOT_APPROVED", "UNKNOWN"],
+            "deployment_modes": ["production_policy", "technical_handoff_only", "unavailable"],
+            "description": "Machine-readable approval boundary for the strategic poker policy.",
+        },
+        "delivery_readiness": {
+            "endpoint": "/delivery-readiness.json",
+            "overall_status_values": [
+                "READY_FOR_TECHNICAL_HANDOFF",
+                "READY_FOR_PRODUCTION_POLICY",
+                "NOT_READY_FOR_HANDOFF",
+            ],
+            "description": "Machine-readable summary that separates service delivery readiness from strategy-policy approval.",
+        },
+        "scope_alignment": {
+            "endpoint": "/scope-alignment.json",
+            "source_documents": [
+                "Poker ML Project.docx",
+                "Poker_Agent_Development_EN_detailed.pdf",
+            ],
+            "description": "Traceability report mapping the client scope to implemented baselines, acceptance gates, and deployment artifacts.",
+        },
         "approval_boundary": {
             "software_delivery": "PASS means the service, reports, packaging, and reproducibility checks are valid.",
             "strategy_model": "Production approval for autonomous strategic quality remains separate from software delivery.",

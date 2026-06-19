@@ -54,6 +54,9 @@ http://127.0.0.1:8001/predict
 http://127.0.0.1:8001/docs
 http://127.0.0.1:8001/health.json
 http://127.0.0.1:8001/contract.json
+http://127.0.0.1:8001/delivery-readiness.json
+http://127.0.0.1:8001/scope-alignment.json
+http://127.0.0.1:8001/strategy-readiness.json
 ```
 
 The health endpoint returns model status, policy name, split strategy, and the validation macro F1 stored in the model metadata.
@@ -89,6 +92,30 @@ http://127.0.0.1:8001/contract.json
 This contract documents `action`, `probabilities`, `confidence`, `bet_size`, `wait_time_ms`, `sizing_method`, `timing_method`, `model_status`, and delivery terms such as `delivery_verification=PASS`, `repo_hygiene=PASS`, `zip_contract=PASS`, and `production_gate=FAIL`.
 
 `production_gate=FAIL` does not mean the service is broken. It means software delivery passed, while strategic approval of the poker policy remains a separate model-quality gate tied to dataset coverage, simulation results, and human-likeness metrics.
+
+The current strategy approval boundary is available as a machine-readable report:
+
+```text
+http://127.0.0.1:8001/strategy-readiness.json
+```
+
+That endpoint exposes `strategy_policy_status`, `deployment_mode`, metric snapshots, blocking gates, required fixes, and the recommended next milestone. In the current delivery this status is expected to be `NOT_APPROVED` because the model does not yet beat all production strategy thresholds.
+
+The combined service-delivery and strategy-approval status is exposed through:
+
+```text
+http://127.0.0.1:8001/delivery-readiness.json
+```
+
+For the current package the expected status is `READY_FOR_TECHNICAL_HANDOFF`: the API, reports, model artifact loading, reproducibility checks, hygiene checks, and ZIP package pass, while the strategic poker policy remains `NOT_APPROVED` for production deployment.
+
+The DOCX/PDF client scope traceability report is exposed through:
+
+```text
+http://127.0.0.1:8001/scope-alignment.json
+```
+
+It maps the requested LLM baseline, supervised policy baseline, architecture comparison, action alignment, synthetic win-rate gate, human-likeness gate, and FastAPI/Docker deployment into measurable phase gates.
 
 ## Architecture Notes
 
@@ -405,6 +432,11 @@ reports\repository_audit.json
 reports\repo_hygiene.json
 reports\dataset_audit.json
 reports\production_gate.json
+reports\policy_acceptance.json
+reports\policy_acceptance.md
+reports\pdf_scope_alignment.json
+reports\pdf_scope_alignment.md
+reports\pdf_scope_model_comparison.csv
 reports\event_schema_dataset_report.json
 reports\event_schema_dataset_report.md
 reports\phase2_event_benchmark_results.csv
@@ -424,6 +456,7 @@ reports\llm_context_ablation.md
 reports\llm_training_delivery_report.json
 reports\llm_training_delivery_report.md
 reports\simulation_readiness.json
+reports\delivery_readiness.json
 reports\delivery_verification.json
 reports\delivery_report.md
 ```

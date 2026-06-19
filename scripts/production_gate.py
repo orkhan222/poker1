@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from poker_agent.model import load_policy
+from poker_agent.strategy_readiness import summarize_strategy_readiness
 
 
 DEFAULT_THRESHOLDS = {
@@ -163,9 +164,21 @@ def main() -> None:
             else "Not approved for production decision-policy deployment."
         ),
     }
+    report["strategy_readiness"] = summarize_strategy_readiness(report)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-    print(json.dumps({"status": report["status"], "decision": report["decision"], "out": str(args.out)}, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "status": report["status"],
+                "decision": report["decision"],
+                "strategy_policy_status": report["strategy_readiness"]["strategy_policy_status"],
+                "deployment_mode": report["strategy_readiness"]["deployment_mode"],
+                "out": str(args.out),
+            },
+            sort_keys=True,
+        )
+    )
     if not passed:
         raise SystemExit(2)
 

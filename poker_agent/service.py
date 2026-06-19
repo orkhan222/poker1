@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,9 @@ from fastapi.responses import HTMLResponse
 
 from poker_agent.agents import MLPolicyAgent, RuleBasedAgent
 from poker_agent.api_contract import api_contract
+from poker_agent.delivery_readiness import summarize_delivery_readiness
 from poker_agent.schemas import PredictionRequest
+from poker_agent.strategy_readiness import load_strategy_readiness
 
 
 app = FastAPI(
@@ -32,6 +35,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL_PATH = PROJECT_ROOT / "models" / "poker_policy.joblib"
 OPTIONAL_BUNDLE_MODEL_PATH = PROJECT_ROOT / "models" / "poker_policy_bundle.joblib"
 FALLBACK_MODEL_PATH = PROJECT_ROOT / "models" / "poker_policy.json"
+PRODUCTION_GATE_REPORT_PATH = PROJECT_ROOT / "reports" / "production_gate.json"
+SCOPE_ALIGNMENT_REPORT_PATH = PROJECT_ROOT / "reports" / "pdf_scope_alignment.json"
 
 
 APP_HTML = """
@@ -553,6 +558,9 @@ def health_html(payload: dict[str, str]) -> str:
       <a class="secondary" href="/docs">API docs</a>
       <a class="secondary" href="/health.json">Raw JSON</a>
       <a class="secondary" href="/contract.json">Contract</a>
+      <a class="secondary" href="/delivery-readiness.json">Delivery readiness</a>
+      <a class="secondary" href="/scope-alignment.json">Scope alignment</a>
+      <a class="secondary" href="/strategy-readiness.json">Strategy readiness</a>
     </nav>
   </main>
 </body>
@@ -610,6 +618,42 @@ def health_json() -> dict[str, str]:
 )
 def contract_json() -> dict[str, Any]:
     return api_contract()
+
+
+@app.get(
+    "/delivery-readiness.json",
+    tags=["System"],
+    summary="Delivery readiness",
+    description="Returns the service handoff status and separates it from strategy-policy production approval.",
+)
+def delivery_readiness_json() -> dict[str, Any]:
+    return summarize_delivery_readiness(PROJECT_ROOT)
+
+
+@app.get(
+    "/scope-alignment.json",
+    tags=["System"],
+    summary="Client scope alignment",
+    description="Returns the DOCX/PDF scope traceability report for baselines, evaluation, acceptance, and deployment.",
+)
+def scope_alignment_json() -> dict[str, Any]:
+    if not SCOPE_ALIGNMENT_REPORT_PATH.exists():
+        return {
+            "overall_status": "MISSING",
+            "report": str(SCOPE_ALIGNMENT_REPORT_PATH),
+            "message": "Scope alignment report has not been generated.",
+        }
+    return json.loads(SCOPE_ALIGNMENT_REPORT_PATH.read_text(encoding="utf-8"))
+
+
+@app.get(
+    "/strategy-readiness.json",
+    tags=["System"],
+    summary="Strategy readiness",
+    description="Returns production policy approval status and the blocking gates for strategy deployment.",
+)
+def strategy_readiness_json() -> dict[str, Any]:
+    return load_strategy_readiness(PRODUCTION_GATE_REPORT_PATH)
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)

@@ -30,3 +30,9 @@ def test_api_contract_separates_delivery_from_strategy_approval() -> None:
     boundary = payload["approval_boundary"]
     assert "software_delivery" in boundary
     assert "strategy_model" in boundary
+    assert payload["strategy_readiness"]["endpoint"] == "/strategy-readiness.json"
+    assert "NOT_APPROVED" in payload["strategy_readiness"]["status_values"]
+    assert payload["delivery_readiness"]["endpoint"] == "/delivery-readiness.json"
+    assert "READY_FOR_TECHNICAL_HANDOFF" in payload["delivery_readiness"]["overall_status_values"]
+    assert payload["scope_alignment"]["endpoint"] == "/scope-alignment.json"
+    assert "Poker ML Project.docx" in payload["scope_alignment"]["source_documents"]
