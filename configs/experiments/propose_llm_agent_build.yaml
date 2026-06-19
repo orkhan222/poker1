@@ -1,0 +1,22 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: propose_llm_agent_build
+description: Create the stakeholder approval package for the selected LLM event-normalization agent and model family.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/propose_llm_agent_build.py
+  args:
+    config: config.yaml
+    architecture_decision: ${logging.reports_dir}/llm_agent_architecture_decision.json
+    model_dir: outputs/qwen25_qlora
+    out_json: ${logging.reports_dir}/llm_agent_build_proposal.json
+    out_md: ${logging.reports_dir}/llm_agent_build_proposal.md
+    approval_status: proposed_for_stakeholder_approval
+    require_adapter: true

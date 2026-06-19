@@ -1,0 +1,31 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: hist_gradient_boosting
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: pdf_scope_delivery
+description: Generate the PDF-scope delivery report with policy, LLM baseline, deployment, and acceptance gates.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/pdf_scope_delivery.py
+  args:
+    dataset: ${dataset.root}
+    model: ${inference.model_path}
+    max_examples: 250
+    missing_hole_cards: ${dataset.missing_hole_cards_train}
+    allow_missing_hole_cards: false
+    keep_all_in_class: false
+    seed: ${training.seed}
+    min_policy_macro_f1: ${evaluation.production_gate.min_macro_f1}
+    min_llm_macro_f1: 0.35
+    min_accuracy_lift: ${evaluation.production_gate.min_accuracy_lift}
+    event_agent_report: ${logging.reports_dir}/llm_agent_architecture_decision.json
+    production_gate: ${logging.reports_dir}/production_gate.json
+    acceptance_report: ${logging.reports_dir}/policy_acceptance.json
+    out: ${logging.reports_dir}/pdf_scope_alignment.json
+    report_out: ${logging.reports_dir}/pdf_scope_alignment.md
+    comparison_out: ${logging.reports_dir}/pdf_scope_model_comparison.csv

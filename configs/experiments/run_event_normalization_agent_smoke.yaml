@@ -1,0 +1,22 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_local_rules
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: run_event_normalization_agent_smoke
+description: Run the selected event-normalization agent on a representative noisy OCR line.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/run_event_normalization_agent.py
+  args:
+    config: config.yaml
+    text: Plyr3 ra1se $4.50
+    output_jsonl: outputs/event_normalization_agent_predictions.jsonl
+    summary_out: reports/event_normalization_agent_summary.json
+    architecture: hybrid_parser_qlora
+    model_path: outputs/qwen25_qlora
+
