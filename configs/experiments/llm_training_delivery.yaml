@@ -1,0 +1,27 @@
+defaults:
+  - override /dataset@_global_.dataset: poker_csv
+  - override /model@_global_.model: text_event_smol
+  - override /training@_global_.training: smoke
+  - override /evaluation@_global_.evaluation: standard
+  - override /inference@_global_.inference: local_service
+  - override /logging@_global_.logging: local
+
+name: llm_training_delivery
+description: Build the consolidated LLM training, validation, baseline-comparison, and simulation-readiness delivery report.
+task: command
+allow_failure: false
+command:
+  entrypoint: scripts/llm_training_delivery.py
+  args:
+    config: config.yaml
+    train_file: data/train.jsonl
+    val_file: data/val.jsonl
+    test_file: data/test.jsonl
+    metrics_file: outputs/qlora_metrics.json
+    predictions_file: outputs/qlora_predictions.jsonl
+    baseline_csv: outputs/baseline_vs_qlora.csv
+    adapter_dir: outputs/qwen25_qlora
+    report_out: ${logging.reports_dir}/llm_training_delivery_report.json
+    markdown_out: ${logging.reports_dir}/llm_training_delivery_report.md
+    simulation_out: outputs/simulation_events.jsonl
+    simulation_summary_out: ${logging.reports_dir}/simulation_readiness.json

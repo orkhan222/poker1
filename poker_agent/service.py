@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 
 from poker_agent.agents import MLPolicyAgent, RuleBasedAgent
+from poker_agent.api_contract import api_contract
 from poker_agent.schemas import PredictionRequest
 
 
@@ -551,6 +552,7 @@ def health_html(payload: dict[str, str]) -> str:
       <a href="/predict">Open application</a>
       <a class="secondary" href="/docs">API docs</a>
       <a class="secondary" href="/health.json">Raw JSON</a>
+      <a class="secondary" href="/contract.json">Contract</a>
     </nav>
   </main>
 </body>
@@ -598,6 +600,16 @@ def health(request: Request) -> Any:
 )
 def health_json() -> dict[str, str]:
     return health_payload()
+
+
+@app.get(
+    "/contract.json",
+    tags=["System"],
+    summary="API response contract",
+    description="Returns the field-level contract for prediction responses and delivery status terms.",
+)
+def contract_json() -> dict[str, Any]:
+    return api_contract()
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)

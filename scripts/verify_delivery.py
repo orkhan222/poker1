@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from poker_agent.agents import MLPolicyAgent
+from poker_agent.api_contract import api_contract
 from poker_agent.model import load_policy
 from poker_agent.schemas import PredictionRequest
 from poker_agent.service import health_payload, resolve_model_path
@@ -88,6 +89,7 @@ def require_files(root: Path) -> str:
         "configs/experiments/llm_transformer_gold_eval.yaml",
         "configs/experiments/llm_decision_baseline.yaml",
         "configs/experiments/llm_context_ablation.yaml",
+        "configs/experiments/llm_training_delivery.yaml",
         "configs/experiments/verify_delivery.yaml",
         "Dockerfile",
         "docker-compose.yml",
@@ -115,6 +117,9 @@ def require_files(root: Path) -> str:
         "reports/llm_context_ablation.json",
         "reports/llm_context_ablation.csv",
         "reports/llm_context_ablation.md",
+        "reports/llm_training_delivery_report.json",
+        "reports/llm_training_delivery_report.md",
+        "reports/simulation_readiness.json",
         "reports/delivery_report.md",
         "evaluation/event_extraction_gold.jsonl",
         "evaluation/event_schema_v1.json",
@@ -134,10 +139,12 @@ def require_files(root: Path) -> str:
         "scripts/llm_transformer_gold_eval.py",
         "scripts/evaluate_llm_decision_agent.py",
         "scripts/evaluate_llm_context_ablation.py",
+        "scripts/llm_training_delivery.py",
         "scripts/production_gate.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
         "poker_agent/service.py",
+        "poker_agent/api_contract.py",
         "poker_agent/action_planning.py",
         "poker_agent/agents.py",
         "poker_agent/features.py",
@@ -166,6 +173,7 @@ def require_files(root: Path) -> str:
 def compile_sources(root: Path) -> str:
     source_files = [
         "poker_agent/action_planning.py",
+        "poker_agent/api_contract.py",
         "poker_agent/agents.py",
         "poker_agent/evaluator.py",
         "poker_agent/event_schema.py",
@@ -198,6 +206,7 @@ def compile_sources(root: Path) -> str:
         "scripts/llm_transformer_gold_eval.py",
         "scripts/evaluate_llm_decision_agent.py",
         "scripts/evaluate_llm_context_ablation.py",
+        "scripts/llm_training_delivery.py",
         "scripts/production_gate.py",
         "scripts/research_experiment.py",
         "scripts/run_hydra_experiment.py",
@@ -269,6 +278,10 @@ def inference_contract(model_path: Path) -> str:
             raise AssertionError(f"Invalid bet size: {payload['bet_size']}")
         if int(payload["wait_time_ms"]) < 250:
             raise AssertionError(f"Invalid wait time: {payload['wait_time_ms']}")
+    contract_fields = api_contract()["prediction_response"]["response_fields"]
+    for field in ("action", "probabilities", "confidence", "bet_size", "wait_time_ms", "sizing_method", "timing_method"):
+        if field not in contract_fields:
+            raise AssertionError(f"API response contract missing field: {field}")
     return (
         f"observed={observed['action']} bet={observed['bet_size']} wait={observed['wait_time_ms']} "
         f"missing={missing['action']} bet={missing['bet_size']} wait={missing['wait_time_ms']}"
@@ -404,6 +417,15 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     if recommended.get("profile") != "candidate_ranker":
         raise AssertionError(f"Unexpected decision prompt recommendation: {recommended}")
     benchmark_detail += f", decision_context_profile={recommended.get('profile')}"
+    llm_training_delivery = root / "reports" / "llm_training_delivery_report.json"
+    if not llm_training_delivery.exists():
+        raise AssertionError("Consolidated LLM training delivery report is missing")
+    training_delivery_payload = json.loads(llm_training_delivery.read_text(encoding="utf-8"))
+    if training_delivery_payload.get("status") != "PASS":
+        raise AssertionError(f"LLM training delivery report did not pass: {training_delivery_payload.get('status')}")
+    if training_delivery_payload.get("simulation_readiness", {}).get("status") != "PASS":
+        raise AssertionError("LLM training simulation readiness did not pass")
+    benchmark_detail += ", llm_training_delivery=PASS"
     return (
         f"audit_findings={len(audit.get('findings', []))}, "
         f"repo_audit={repo_audit.get('status')}, gate={gate.get('status')}{benchmark_detail}"
@@ -480,6 +502,7 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "configs/experiments/llm_transformer_gold_eval.yaml",
         "configs/experiments/llm_decision_baseline.yaml",
         "configs/experiments/llm_context_ablation.yaml",
+        "configs/experiments/llm_training_delivery.yaml",
         "evaluation/event_extraction_gold.jsonl",
         "evaluation/event_schema_v1.json",
         "evaluation/event_extraction_phase1.jsonl",
@@ -504,6 +527,9 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "reports/llm_context_ablation.json",
         "reports/llm_context_ablation.csv",
         "reports/llm_context_ablation.md",
+        "reports/llm_training_delivery_report.json",
+        "reports/llm_training_delivery_report.md",
+        "reports/simulation_readiness.json",
         "reports/delivery_report.md",
         "scripts/benchmark.py",
         "scripts/check_repo_hygiene.py",
@@ -514,8 +540,10 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "scripts/llm_transformer_gold_eval.py",
         "scripts/evaluate_llm_decision_agent.py",
         "scripts/evaluate_llm_context_ablation.py",
+        "scripts/llm_training_delivery.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
+        "poker_agent/api_contract.py",
         "poker_agent/event_schema.py",
         "poker_agent/event_normalization/__init__.py",
         "poker_agent/event_normalization/backends.py",

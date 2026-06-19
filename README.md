@@ -10,7 +10,7 @@ As of the latest delivery build:
 repository_audit=PASS
 repo_hygiene=PASS
 delivery_verification=PASS
-model_production_gate=FAIL
+production_gate=FAIL
 ```
 
 The package is reproducible and ready for technical handoff. The model is not marked as production-approved for autonomous decision policy use, because the current dataset still has known coverage and class-balance limitations. Those limitations are documented in `reports\dataset_audit.json` and `reports\production_gate.json`.
@@ -53,6 +53,7 @@ Open these endpoints after the server starts:
 http://127.0.0.1:8001/predict
 http://127.0.0.1:8001/docs
 http://127.0.0.1:8001/health.json
+http://127.0.0.1:8001/contract.json
 ```
 
 The health endpoint returns model status, policy name, split strategy, and the validation macro F1 stored in the model metadata.
@@ -78,6 +79,16 @@ confidence, bet size, and waiting time:
   "model_status": "hist_gradient_boosting"
 }
 ```
+
+The response-field and delivery-status definitions are versioned in code and exposed through:
+
+```text
+http://127.0.0.1:8001/contract.json
+```
+
+This contract documents `action`, `probabilities`, `confidence`, `bet_size`, `wait_time_ms`, `sizing_method`, `timing_method`, `model_status`, and delivery terms such as `delivery_verification=PASS`, `repo_hygiene=PASS`, `zip_contract=PASS`, and `production_gate=FAIL`.
+
+`production_gate=FAIL` does not mean the service is broken. It means software delivery passed, while strategic approval of the poker policy remains a separate model-quality gate tied to dataset coverage, simulation results, and human-likeness metrics.
 
 ## Architecture Notes
 
@@ -123,6 +134,7 @@ llm_event_gold_eval
 llm_transformer_gold_eval
 llm_decision_baseline
 llm_context_ablation
+llm_training_delivery
 verify_delivery
 ```
 
@@ -137,6 +149,7 @@ Useful commands:
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_transformer_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_context_ablation python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_training_delivery python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=verify_delivery python_executable=.venv/Scripts/python.exe
 ```
 
@@ -346,6 +359,28 @@ primary reproducible evidence for how explicit poker rules, formal constraints,
 few-shot examples, and constrained candidate selection affect the out-of-the-box
 LLM decision baseline.
 
+## LLM Training Delivery
+
+The consolidated LLM training delivery command combines the QLoRA adapter
+artifact check, dataset contract, validation metrics, baseline comparison, and
+simulation-ready event export:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_training_delivery python_executable=.venv/Scripts/python.exe
+```
+
+Generated outputs:
+
+```text
+reports\llm_training_delivery_report.json
+reports\llm_training_delivery_report.md
+reports\simulation_readiness.json
+outputs\simulation_events.jsonl
+```
+
+This report is the handoff artifact for the next milestone: using the normalized
+LLM event stream in policy simulation.
+
 ## Latest Model Metrics
 
 Current packaged policy:
@@ -386,6 +421,9 @@ reports\llm_decision_prompt_contract.md
 reports\llm_context_ablation.json
 reports\llm_context_ablation.csv
 reports\llm_context_ablation.md
+reports\llm_training_delivery_report.json
+reports\llm_training_delivery_report.md
+reports\simulation_readiness.json
 reports\delivery_verification.json
 reports\delivery_report.md
 ```

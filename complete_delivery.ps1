@@ -107,6 +107,8 @@ $DecisionEvalReport = Join-Path $ReportsDir "llm_decision_agent_eval.json"
 $DecisionMarkdownReport = Join-Path $ReportsDir "llm_decision_agent_report.md"
 $DecisionContextAblationJson = Join-Path $ReportsDir "llm_context_ablation.json"
 $DecisionContextAblationMarkdown = Join-Path $ReportsDir "llm_context_ablation.md"
+$LLMTrainingDeliveryJson = Join-Path $ReportsDir "llm_training_delivery_report.json"
+$LLMTrainingDeliveryMarkdown = Join-Path $ReportsDir "llm_training_delivery_report.md"
 
 Write-Host "1/8 Auditing dataset..." -ForegroundColor Green
 & $Python scripts\audit_dataset.py `
@@ -223,6 +225,14 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Decision context-ablation benchmark failed."
 }
 
+Write-Host "5e/8 Building consolidated LLM training delivery report..." -ForegroundColor Green
+& $Python scripts\run_hydra_experiment.py `
+    experiments=llm_training_delivery `
+    "python_executable=$Python"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "LLM training delivery report failed."
+}
+
 Write-Host "6/8 Auditing repository..." -ForegroundColor Green
 & $Python scripts\audit_repository.py `
     --root $ProjectRoot `
@@ -287,4 +297,6 @@ Write-Host "Decision baseline eval: $DecisionEvalReport"
 Write-Host "Decision baseline report: $DecisionMarkdownReport"
 Write-Host "Decision context ablation: $DecisionContextAblationJson"
 Write-Host "Decision context report: $DecisionContextAblationMarkdown"
+Write-Host "LLM training delivery: $LLMTrainingDeliveryJson"
+Write-Host "LLM training report: $LLMTrainingDeliveryMarkdown"
 Write-Host "ZIP: $ZipPath"
