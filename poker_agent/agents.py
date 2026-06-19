@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from poker_agent.action_planning import build_action_plan
 from poker_agent.features import request_to_features
 from poker_agent.model import load_policy
 from poker_agent.schemas import PredictionRequest, PredictionResponse
@@ -20,10 +21,16 @@ class RuleBasedAgent:
         else:
             probabilities = {"fold": 0.62, "call": 0.20, "check": 0.12, "raise": 0.04, "bet": 0.02}
         action = max(probabilities, key=probabilities.get)
+        confidence = max(probabilities.values(), default=0.0)
+        plan = build_action_plan(request, action, confidence=confidence)
         return PredictionResponse(
             action=action,
             probabilities=probabilities,
-            confidence=max(probabilities.values(), default=0.0),
+            confidence=confidence,
+            bet_size=plan.bet_size,
+            wait_time_ms=plan.wait_time_ms,
+            sizing_method=plan.sizing_method,
+            timing_method=plan.timing_method,
             model_status="rule_based",
             warnings=warnings or [],
         )
@@ -48,10 +55,16 @@ class MissingCardFallbackAgent:
             probabilities = {"fold": 0.72, "call": 0.18, "raise": 0.04, "bet": 0.03, "check": 0.03}
 
         action = max(probabilities, key=probabilities.get)
+        confidence = max(probabilities.values(), default=0.0)
+        plan = build_action_plan(request, action, confidence=confidence)
         return PredictionResponse(
             action=action,
             probabilities=probabilities,
-            confidence=max(probabilities.values(), default=0.0),
+            confidence=confidence,
+            bet_size=plan.bet_size,
+            wait_time_ms=plan.wait_time_ms,
+            sizing_method=plan.sizing_method,
+            timing_method=plan.timing_method,
             model_status="missing_card_fallback",
             warnings=warnings or [],
         )
@@ -78,11 +91,16 @@ class MLPolicyAgent:
             return self.missing_card_fallback.predict(request, warnings=warnings)
 
         action, probabilities = self.model.predict_from_features(request_to_features(request))
+        confidence = max(probabilities.values(), default=0.0)
+        plan = build_action_plan(request, action, confidence=confidence)
         return PredictionResponse(
             action=action,
             probabilities=probabilities,
-            confidence=max(probabilities.values(), default=0.0),
+            confidence=confidence,
+            bet_size=plan.bet_size,
+            wait_time_ms=plan.wait_time_ms,
+            sizing_method=plan.sizing_method,
+            timing_method=plan.timing_method,
             model_status=str(metadata.get("policy", "model")),
             warnings=warnings,
         )
-

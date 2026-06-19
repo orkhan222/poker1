@@ -1,6 +1,6 @@
 ﻿# Poker Decision Agent
 
-Poker Decision Agent is a FastAPI service and ML research workspace for poker action prediction from OCR and event-log data. The repository includes the API, trained model artifact, Hydra experiment configs, evaluation scripts, audit reports, and a packaged delivery ZIP.
+Poker Decision Agent is a FastAPI service and ML research workspace for poker action prediction from OCR and event-log data. The repository includes the API, trained model artifact, Hydra experiment configs, evaluation scripts, audit reports, and a packaged delivery ZIP. The prediction contract covers action selection, action probabilities, bet sizing, and calibrated waiting time.
 
 ## Delivery Status
 
@@ -19,7 +19,7 @@ The package is reproducible and ready for technical handoff. The model is not ma
 
 ```text
 .
-|-- poker_agent/              API, schemas, feature extraction, model loading
+|-- poker_agent/              API, schemas, feature extraction, action planning, model loading
 |-- scripts/                  training, evaluation, audit, packaging checks
 |-- configs/                  Hydra experiment configuration
 |-- docs/                     architecture and delivery decision records
@@ -56,6 +56,28 @@ http://127.0.0.1:8001/health.json
 ```
 
 The health endpoint returns model status, policy name, split strategy, and the validation macro F1 stored in the model metadata.
+
+The prediction endpoint returns the selected action, action probabilities,
+confidence, bet size, and waiting time:
+
+```json
+{
+  "action": "raise",
+  "probabilities": {
+    "fold": 0.02,
+    "call": 0.24,
+    "bet": 0.18,
+    "check": 0.04,
+    "raise": 0.52
+  },
+  "confidence": 0.52,
+  "bet_size": 4.5,
+  "wait_time_ms": 1230,
+  "sizing_method": "pressure_raise",
+  "timing_method": "complexity_calibrated",
+  "model_status": "hist_gradient_boosting"
+}
+```
 
 ## Architecture Notes
 
@@ -100,6 +122,7 @@ llm_event_benchmark
 llm_event_gold_eval
 llm_transformer_gold_eval
 llm_decision_baseline
+llm_context_ablation
 verify_delivery
 ```
 
@@ -113,6 +136,7 @@ Useful commands:
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_event_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_transformer_gold_eval python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_context_ablation python_executable=.venv/Scripts/python.exe
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=verify_delivery python_executable=.venv/Scripts/python.exe
 ```
 
@@ -212,7 +236,7 @@ fast and reproducible. To run the same benchmark against local or downloadable
 instruction models, switch the backend and model IDs:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark experiments.command.args.backend=transformers "experiments.command.args.model_ids=qwen2_5_1_5b,qwen3_1_7b,smollm2_1_7b" python_executable=.venv/Scripts/python.exe
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=phase2_event_benchmark experiments.command.args.backend=transformers "experiments.command.args.model_ids=[qwen2_5_1_5b,qwen3_1_7b,smollm2_1_7b]" python_executable=.venv/Scripts/python.exe
 ```
 
 ## Text Event Extraction Results
@@ -269,6 +293,12 @@ game state into a compact decision prompt, parses the output into one action,
 and reports accuracy, macro F1, cross-entropy, invalid output rate, latency,
 and confusion matrix.
 
+The LLM decision baseline now treats in-context learning as an explicit
+experiment setting. Zero-shot runs are not context-free: the prompt includes a
+formal task definition, poker rules, legal-action constraints, output schema,
+state interpretation guidelines, bet-size constraints, and waiting-time
+constraints. Few-shot and candidate-ranking profiles build on the same contract.
+
 Default reproducible run:
 
 ```powershell
@@ -288,6 +318,33 @@ model settings:
 ```powershell
 .\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_decision_baseline model.provider=transformers model.model_id=Qwen/Qwen2.5-1.5B-Instruct training.max_examples=100
 ```
+
+Generated prompt contract:
+
+```text
+reports\llm_decision_prompt_contract.md
+```
+
+Context-ablation benchmark:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_hydra_experiment.py experiments=llm_context_ablation python_executable=.venv/Scripts/python.exe
+```
+
+Generated context-ablation outputs:
+
+```text
+reports\llm_context_ablation.json
+reports\llm_context_ablation.csv
+reports\llm_context_ablation.md
+reports\llm_context_ablation_predictions.jsonl
+```
+
+This benchmark compares `minimal`, `rules_zero_shot`, `rules_few_shot`, and
+`candidate_ranker` prompt profiles on the same evaluation slice. It is the
+primary reproducible evidence for how explicit poker rules, formal constraints,
+few-shot examples, and constrained candidate selection affect the out-of-the-box
+LLM decision baseline.
 
 ## Latest Model Metrics
 
@@ -325,6 +382,10 @@ reports\llm_transformer_gold_eval.json
 reports\llm_transformer_gold_report.md
 reports\llm_decision_agent_eval.json
 reports\llm_decision_agent_report.md
+reports\llm_decision_prompt_contract.md
+reports\llm_context_ablation.json
+reports\llm_context_ablation.csv
+reports\llm_context_ablation.md
 reports\delivery_verification.json
 reports\delivery_report.md
 ```

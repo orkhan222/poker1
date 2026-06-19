@@ -17,12 +17,15 @@ command:
     out: ${logging.reports_dir}/llm_decision_agent_eval.json
     predictions_out: ${logging.reports_dir}/llm_decision_agent_predictions.jsonl
     report_out: ${logging.reports_dir}/llm_decision_agent_report.md
+    prompt_report_out: ${logging.reports_dir}/llm_decision_prompt_contract.md
     provider: ${model.provider}
     mode: ${model.mode}
     model_id: ${model.model_id}
     device: ${model.device}
     max_new_tokens: ${model.max_new_tokens}
     temperature: ${model.temperature}
+    prompt_profile: candidate_ranker
+    few_shot_count: 5
     max_examples: 250
     allow_missing_hole_cards: false
     missing_hole_cards: ${dataset.missing_hole_cards_train}

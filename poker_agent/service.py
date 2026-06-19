@@ -301,8 +301,8 @@ APP_HTML = """
         <div id="action" class="action">Ready</div>
         <div class="summary">
           <div class="metric"><span>Confidence</span><strong id="confidence">-</strong></div>
-          <div class="metric"><span>Street</span><strong id="street-summary">-</strong></div>
-          <div class="metric"><span>Position</span><strong id="position-summary">-</strong></div>
+          <div class="metric"><span>Bet size</span><strong id="bet-size">-</strong></div>
+          <div class="metric"><span>Wait time</span><strong id="wait-time">-</strong></div>
         </div>
         <div id="bars" class="bars"></div>
         <pre id="json-output">{}</pre>
@@ -315,8 +315,8 @@ APP_HTML = """
     const button = document.getElementById("submit-button");
     const actionBox = document.getElementById("action");
     const confidence = document.getElementById("confidence");
-    const streetSummary = document.getElementById("street-summary");
-    const positionSummary = document.getElementById("position-summary");
+    const betSize = document.getElementById("bet-size");
+    const waitTime = document.getElementById("wait-time");
     const bars = document.getElementById("bars");
     const output = document.getElementById("json-output");
 
@@ -333,8 +333,8 @@ APP_HTML = """
       const probabilities = Object.values(result.probabilities || {});
       const topProbability = probabilities.length ? Math.max(...probabilities) : 0;
       confidence.textContent = `${(topProbability * 100).toFixed(1)}%`;
-      streetSummary.textContent = payload.street || "-";
-      positionSummary.textContent = payload.position || "-";
+      betSize.textContent = Number(result.bet_size || 0).toFixed(2);
+      waitTime.textContent = result.wait_time_ms ? `${result.wait_time_ms} ms` : "-";
       output.textContent = JSON.stringify(result, null, 2);
       bars.innerHTML = "";
       Object.entries(result.probabilities || {})

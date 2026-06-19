@@ -7,6 +7,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol
 
+from poker_agent.action_planning import build_action_plan
+from poker_agent.decision_context import build_contextual_decision_prompt, state_payload
 from poker_agent.features import normalize_action, request_to_features
 from poker_agent.schemas import PredictionRequest, PredictionResponse
 
@@ -24,40 +26,23 @@ def _softmax(scores: dict[str, float]) -> dict[str, float]:
 
 
 def _state_payload(request: PredictionRequest) -> dict[str, Any]:
-    features = request_to_features(request)
-    return {
-        "position": request.position,
-        "street": request.street,
-        "hole_cards": request.hole_cards,
-        "board_cards": request.board_cards,
-        "pot": request.pot,
-        "to_call": request.to_call,
-        "stack": request.stack,
-        "min_raise": request.min_raise,
-        "player_count": request.player_count,
-        "betting_history": request.betting_history[-12:],
-        "derived": {
-            "pot_odds": round(features.get("pot_odds", 0.0), 6),
-            "spr": round(features.get("spr", 0.0), 6),
-            "strength_proxy": round(features.get("strength_proxy", 0.0), 6),
-            "street_aggression_ratio": round(
-                features.get("street_aggression_ratio", features.get("hist_aggression_ratio", 0.0)),
-                6,
-            ),
-            "hole_cards_missing": bool(features.get("hole_cards_missing", 0.0)),
-        },
-    }
+    return state_payload(request)
 
 
-def build_decision_prompt(request: PredictionRequest, allowed_actions: tuple[str, ...] = DECISION_ACTIONS) -> str:
-    state = json.dumps(_state_payload(request), sort_keys=True)
-    actions = ", ".join(allowed_actions)
-    return (
-        "You are classifying one poker decision from a structured game state.\n"
-        f"Allowed actions: {actions}.\n"
-        "Return only compact JSON with keys action, confidence, rationale.\n"
-        "Do not include strategy text outside JSON.\n"
-        f"State: {state}"
+def build_decision_prompt(
+    request: PredictionRequest,
+    allowed_actions: tuple[str, ...] = DECISION_ACTIONS,
+    *,
+    prompt_profile: str = "rules_zero_shot",
+    few_shot_count: int = 0,
+    candidates: tuple[str, ...] | None = None,
+) -> str:
+    return build_contextual_decision_prompt(
+        request,
+        allowed_actions=allowed_actions,
+        profile=prompt_profile,
+        few_shot_count=few_shot_count,
+        candidates=candidates,
     )
 
 
@@ -298,9 +283,17 @@ class LLMDecisionAgent:
     provider: DecisionTextProvider
     mode: str = "candidate_ranker"
     allowed_actions: tuple[str, ...] = DECISION_ACTIONS
+    prompt_profile: str = "rules_zero_shot"
+    few_shot_count: int = 0
 
     def predict(self, request: PredictionRequest) -> PredictionResponse:
-        prompt = build_decision_prompt(request, self.allowed_actions)
+        prompt = build_decision_prompt(
+            request,
+            self.allowed_actions,
+            prompt_profile=self.prompt_profile,
+            few_shot_count=self.few_shot_count,
+            candidates=self.allowed_actions if self.mode == "candidate_ranker" else None,
+        )
         started = time.perf_counter()
         warnings: list[str] = []
         raw_text = ""
@@ -322,18 +315,28 @@ class LLMDecisionAgent:
             raise ValueError(f"Unsupported decision mode: {self.mode}")
 
         latency_ms = (time.perf_counter() - started) * 1000.0
+        plan = build_action_plan(
+            request,
+            action,
+            confidence=confidence,
+            processing_time_ms=latency_ms,
+        )
         response = PredictionResponse(
             action=action,
             probabilities=probabilities,
             confidence=confidence,
+            bet_size=plan.bet_size,
+            wait_time_ms=plan.wait_time_ms,
+            sizing_method=plan.sizing_method,
+            timing_method=plan.timing_method,
             model_status=f"{self.provider.name}:{self.mode}",
             warnings=warnings,
         )
         response.raw_text = raw_text
         response.latency_ms = latency_ms
+        response.prompt = prompt
         return response
 
 
 def request_to_jsonable(request: PredictionRequest) -> dict[str, Any]:
     return asdict(request)
-

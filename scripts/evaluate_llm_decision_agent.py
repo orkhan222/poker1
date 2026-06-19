@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from poker_agent.decision_context import describe_prompt_profile
 from poker_agent.features import load_training_examples
 from poker_agent.llm_decision import (
     DECISION_ACTIONS,
@@ -29,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out", default=Path("reports/llm_decision_agent_eval.json"), type=Path)
     parser.add_argument("--predictions-out", default=Path("reports/llm_decision_agent_predictions.jsonl"), type=Path)
     parser.add_argument("--report-out", default=Path("reports/llm_decision_agent_report.md"), type=Path)
+    parser.add_argument("--prompt-report-out", default=Path("reports/llm_decision_prompt_contract.md"), type=Path)
     parser.add_argument(
         "--provider",
         choices=("heuristic_text", "transformers"),
@@ -43,6 +45,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument(
+        "--prompt-profile",
+        choices=("minimal", "rules_zero_shot", "rules_few_shot", "candidate_ranker"),
+        default="rules_zero_shot",
+    )
+    parser.add_argument("--few-shot-count", type=int, default=0)
     parser.add_argument("--max-examples", type=int, default=250)
     parser.add_argument(
         "--allow-missing-hole-cards",
@@ -171,6 +179,8 @@ def write_report(payload: dict[str, Any], path: Path) -> None:
         "",
         f"- Provider: `{payload['provider']}`",
         f"- Mode: `{payload['mode']}`",
+        f"- Prompt profile: `{payload['prompt_profile']}`",
+        f"- Few-shot examples: `{payload['prompt_contract']['few_shot_count']}`",
         f"- Model ID: `{payload['model_id']}`",
         f"- Examples: `{int(metrics['examples'])}`",
         f"- Seed: `{payload['seed']}`",
@@ -206,6 +216,43 @@ def write_report(payload: dict[str, Any], path: Path) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_prompt_report(payload: dict[str, Any], path: Path) -> None:
+    contract = payload["prompt_contract"]
+    sample_prompt = payload.get("sample_prompt", "")
+    lines = [
+        "# LLM Decision Prompt Contract",
+        "",
+        "## Objective",
+        "",
+        "Define the in-context learning contract for out-of-the-box LLM decision baselines. "
+        "The zero-shot profile is not context-free: it includes the task, formal poker rules, legal-action constraints, and strict JSON output requirements.",
+        "",
+        "## Configuration",
+        "",
+        f"- Prompt profile: `{contract['profile']}`",
+        f"- Includes poker rules: `{str(contract['include_rules']).lower()}`",
+        f"- Includes formal constraints: `{str(contract['include_guidelines']).lower()}`",
+        f"- Few-shot examples: `{contract['few_shot_count']}`",
+        f"- Rules count: `{contract['rules_count']}`",
+        f"- Guidelines count: `{contract['guidelines_count']}`",
+        "",
+        "## Output Schema",
+        "",
+        "```json",
+        json.dumps(contract["output_schema"], indent=2, sort_keys=True),
+        "```",
+        "",
+        "## Sample Prompt",
+        "",
+        "```text",
+        sample_prompt,
+        "```",
+        "",
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> None:
     args = parse_args()
     random.seed(args.seed)
@@ -223,19 +270,30 @@ def main() -> None:
         raise SystemExit(f"No decision examples found in {args.dataset}")
 
     provider = build_provider(args)
-    agent = LLMDecisionAgent(provider=provider, mode=args.mode)
+    prompt_profile = args.prompt_profile
+    if args.mode == "candidate_ranker" and prompt_profile == "rules_zero_shot":
+        prompt_profile = "candidate_ranker"
+    agent = LLMDecisionAgent(
+        provider=provider,
+        mode=args.mode,
+        prompt_profile=prompt_profile,
+        few_shot_count=args.few_shot_count,
+    )
     y_true: list[str] = []
     y_pred: list[str] = []
     probabilities: list[dict[str, float]] = []
     latencies: list[float] = []
     invalid_count = 0
     prediction_rows: list[dict[str, Any]] = []
+    sample_prompt = ""
 
     for index, record in enumerate(records):
         request, _features, label, hand_id = record
         if not isinstance(request, PredictionRequest):
             raise TypeError("Expected load_training_examples(..., include_request=True) to return PredictionRequest")
         response = agent.predict(request)
+        if not sample_prompt:
+            sample_prompt = str(getattr(response, "prompt", ""))
         invalid = any("valid action" in warning for warning in response.warnings)
         invalid_count += int(invalid)
         y_true.append(label)
@@ -255,6 +313,7 @@ def main() -> None:
                 "invalid_output": invalid,
                 "request": request_to_jsonable(request),
                 "raw_text": getattr(response, "raw_text", ""),
+                "prompt_profile": prompt_profile,
             }
         )
 
@@ -279,7 +338,12 @@ def main() -> None:
             "keep_all_in_class": args.keep_all_in_class,
             "temperature": args.temperature,
             "max_new_tokens": args.max_new_tokens,
+            "prompt_profile": prompt_profile,
+            "few_shot_count": args.few_shot_count,
         },
+        "prompt_profile": prompt_profile,
+        "prompt_contract": describe_prompt_profile(prompt_profile, few_shot_count=args.few_shot_count),
+        "sample_prompt": sample_prompt,
         "metrics": metrics,
         "latency_ms": latency,
         "invalid_output_rate": invalid_count / len(records) if records else 0.0,
@@ -293,6 +357,7 @@ def main() -> None:
         for row in prediction_rows:
             handle.write(json.dumps(row, sort_keys=True) + "\n")
     write_report(payload, args.report_out)
+    write_prompt_report(payload, args.prompt_report_out)
 
     print(f"examples={int(metrics['examples'])}")
     print(f"accuracy={metrics['accuracy']:.4f}")
@@ -303,6 +368,8 @@ def main() -> None:
     print(f"mean_latency_ms={latency['mean']:.2f}")
     print(f"out={args.out}")
     print(f"report_out={args.report_out}")
+    print(f"prompt_profile={prompt_profile}")
+    print(f"prompt_report_out={args.prompt_report_out}")
 
 
 if __name__ == "__main__":

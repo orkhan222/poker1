@@ -13,6 +13,7 @@ SKIP_DIRS = {
     "dataset",
     "env",
     "models",
+    "outputs",
     "release",
     "reports",
     "research_runs",

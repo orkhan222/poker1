@@ -49,6 +49,10 @@ class PredictionResponse:
     action: str
     probabilities: dict[str, float]
     confidence: float = 0.0
+    bet_size: float | None = None
+    wait_time_ms: int | None = None
+    sizing_method: str | None = None
+    timing_method: str | None = None
     model_status: str = "model"
     warnings: list[str] = field(default_factory=list)
 
@@ -60,6 +64,14 @@ class PredictionResponse:
             "confidence": confidence,
             "model_status": self.model_status,
         }
+        if self.bet_size is not None:
+            payload["bet_size"] = self.bet_size
+        if self.wait_time_ms is not None:
+            payload["wait_time_ms"] = self.wait_time_ms
+        if self.sizing_method:
+            payload["sizing_method"] = self.sizing_method
+        if self.timing_method:
+            payload["timing_method"] = self.timing_method
         if self.warnings:
             payload["warnings"] = self.warnings
         return payload

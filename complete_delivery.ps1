@@ -105,6 +105,8 @@ $TransformerEvalReport = Join-Path $ReportsDir "llm_transformer_gold_eval.json"
 $TransformerMarkdownReport = Join-Path $ReportsDir "llm_transformer_gold_report.md"
 $DecisionEvalReport = Join-Path $ReportsDir "llm_decision_agent_eval.json"
 $DecisionMarkdownReport = Join-Path $ReportsDir "llm_decision_agent_report.md"
+$DecisionContextAblationJson = Join-Path $ReportsDir "llm_context_ablation.json"
+$DecisionContextAblationMarkdown = Join-Path $ReportsDir "llm_context_ablation.md"
 
 Write-Host "1/8 Auditing dataset..." -ForegroundColor Green
 & $Python scripts\audit_dataset.py `
@@ -213,6 +215,14 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Text-model decision baseline failed."
 }
 
+Write-Host "5d/8 Running decision context-ablation benchmark..." -ForegroundColor Green
+& $Python scripts\run_hydra_experiment.py `
+    experiments=llm_context_ablation `
+    "python_executable=$Python"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Decision context-ablation benchmark failed."
+}
+
 Write-Host "6/8 Auditing repository..." -ForegroundColor Green
 & $Python scripts\audit_repository.py `
     --root $ProjectRoot `
@@ -275,4 +285,6 @@ Write-Host "Instruction-model eval: $TransformerEvalReport"
 Write-Host "Instruction-model report: $TransformerMarkdownReport"
 Write-Host "Decision baseline eval: $DecisionEvalReport"
 Write-Host "Decision baseline report: $DecisionMarkdownReport"
+Write-Host "Decision context ablation: $DecisionContextAblationJson"
+Write-Host "Decision context report: $DecisionContextAblationMarkdown"
 Write-Host "ZIP: $ZipPath"
