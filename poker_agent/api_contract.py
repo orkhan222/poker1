@@ -142,6 +142,11 @@ def api_contract() -> dict[str, Any]:
             ],
             "description": "Traceability report mapping the client scope to implemented baselines, acceptance gates, and deployment artifacts.",
         },
+        "strategy_remediation": {
+            "endpoint": "/strategy-remediation.json",
+            "description": "Actionable blocker and workstream report for production strategy approval.",
+            "production_claim_allowed": "true only when all strategy blockers are resolved",
+        },
         "approval_boundary": {
             "software_delivery": "PASS means the service, reports, packaging, and reproducibility checks are valid.",
             "strategy_model": "Production approval for autonomous strategic quality remains separate from software delivery.",

@@ -42,6 +42,31 @@ def legal_min_raise(request: PredictionRequest) -> float:
     return max(request.pot * 0.5, 1.0)
 
 
+def calibrated_aggressive_size(
+    request: PredictionRequest,
+    action: str,
+    *,
+    strength: float,
+    confidence: float,
+) -> float:
+    stack = max(float(request.stack), 0.0)
+    pot = max(float(request.pot), 0.0)
+    minimum = min(stack, legal_min_raise(request))
+    if stack <= 0.0:
+        return 0.0
+    if action == "all_in":
+        return stack
+
+    pressure_score = clamp((0.62 * strength + 0.38 * confidence - 0.68) / 0.32, 0.0, 1.0)
+    if pressure_score <= 0.0:
+        return minimum
+
+    extra_fraction = 0.10 + 0.18 * strength + 0.08 * confidence
+    raw_size = minimum + pot * extra_fraction * pressure_score
+    stack_cap = stack * (0.24 + 0.18 * pressure_score)
+    return min(stack, max(minimum, min(raw_size, stack_cap)))
+
+
 def estimate_bet_size(
     request: PredictionRequest,
     action: str,
@@ -49,7 +74,6 @@ def estimate_bet_size(
     confidence: float,
 ) -> tuple[float, str]:
     stack = max(float(request.stack), 0.0)
-    pot = max(float(request.pot), 0.0)
     to_call = max(float(request.to_call), 0.0)
     confidence = clamp(float(confidence), 0.0, 1.0)
     features = request_to_features(request)
@@ -62,16 +86,20 @@ def estimate_bet_size(
     if action == "bet":
         if to_call > 0.0:
             return round_chips(min(stack, to_call)), "bet_mapped_to_call_price"
-        pot_fraction = 0.42 + 0.28 * strength + 0.12 * confidence
-        raw_size = max(legal_min_raise(request), pot * pot_fraction)
-        capped = min(raw_size, stack)
+        capped = calibrated_aggressive_size(
+            request,
+            action,
+            strength=strength,
+            confidence=confidence,
+        )
         return round_chips(capped), "pot_fraction_bet"
     if action in {"raise", "all_in"}:
-        minimum = legal_min_raise(request)
-        pressure_fraction = 0.65 + 0.25 * strength + 0.10 * confidence
-        raw_size = max(minimum, to_call * 2.0, pot * pressure_fraction)
-        stack_cap = stack if action == "all_in" else max(0.0, stack * 0.45)
-        capped = min(raw_size, stack if stack_cap <= 0 else stack_cap)
+        capped = calibrated_aggressive_size(
+            request,
+            action,
+            strength=strength,
+            confidence=confidence,
+        )
         return round_chips(capped), "pressure_raise"
     return 0.0, "unsupported_action"
 

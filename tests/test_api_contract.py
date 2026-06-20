@@ -36,3 +36,4 @@ def test_api_contract_separates_delivery_from_strategy_approval() -> None:
     assert "READY_FOR_TECHNICAL_HANDOFF" in payload["delivery_readiness"]["overall_status_values"]
     assert payload["scope_alignment"]["endpoint"] == "/scope-alignment.json"
     assert "Poker ML Project.docx" in payload["scope_alignment"]["source_documents"]
+    assert payload["strategy_remediation"]["endpoint"] == "/strategy-remediation.json"

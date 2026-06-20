@@ -37,6 +37,7 @@ OPTIONAL_BUNDLE_MODEL_PATH = PROJECT_ROOT / "models" / "poker_policy_bundle.jobl
 FALLBACK_MODEL_PATH = PROJECT_ROOT / "models" / "poker_policy.json"
 PRODUCTION_GATE_REPORT_PATH = PROJECT_ROOT / "reports" / "production_gate.json"
 SCOPE_ALIGNMENT_REPORT_PATH = PROJECT_ROOT / "reports" / "pdf_scope_alignment.json"
+STRATEGY_REMEDIATION_REPORT_PATH = PROJECT_ROOT / "reports" / "strategy_remediation.json"
 
 
 APP_HTML = """
@@ -560,6 +561,7 @@ def health_html(payload: dict[str, str]) -> str:
       <a class="secondary" href="/contract.json">Contract</a>
       <a class="secondary" href="/delivery-readiness.json">Delivery readiness</a>
       <a class="secondary" href="/scope-alignment.json">Scope alignment</a>
+      <a class="secondary" href="/strategy-remediation.json">Strategy remediation</a>
       <a class="secondary" href="/strategy-readiness.json">Strategy readiness</a>
     </nav>
   </main>
@@ -644,6 +646,22 @@ def scope_alignment_json() -> dict[str, Any]:
             "message": "Scope alignment report has not been generated.",
         }
     return json.loads(SCOPE_ALIGNMENT_REPORT_PATH.read_text(encoding="utf-8"))
+
+
+@app.get(
+    "/strategy-remediation.json",
+    tags=["System"],
+    summary="Strategy remediation",
+    description="Returns the blocking strategy gates and engineering workstreams required before production policy approval.",
+)
+def strategy_remediation_json() -> dict[str, Any]:
+    if not STRATEGY_REMEDIATION_REPORT_PATH.exists():
+        return {
+            "strategy_policy_status": "UNKNOWN",
+            "report": str(STRATEGY_REMEDIATION_REPORT_PATH),
+            "message": "Strategy remediation report has not been generated.",
+        }
+    return json.loads(STRATEGY_REMEDIATION_REPORT_PATH.read_text(encoding="utf-8"))
 
 
 @app.get(

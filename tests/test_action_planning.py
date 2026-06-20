@@ -35,6 +35,24 @@ def test_raise_respects_stack_and_min_raise_constraints() -> None:
     assert 10.0 <= amount <= 30.0
 
 
+def test_low_pressure_raise_uses_minimum_sizing() -> None:
+    amount = estimate_bet_size(
+        request(hole_cards=["7C", "2D"], pot=20.0, to_call=4.0, min_raise=10.0, stack=100.0),
+        "raise",
+        confidence=0.35,
+    )[0]
+    assert amount == 10.0
+
+
+def test_high_pressure_raise_can_exceed_minimum_without_overcommitting() -> None:
+    amount = estimate_bet_size(
+        request(hole_cards=["AS", "AD"], pot=40.0, to_call=4.0, min_raise=6.0, stack=100.0),
+        "raise",
+        confidence=0.95,
+    )[0]
+    assert 6.0 < amount <= 42.0
+
+
 def test_wait_time_respects_processing_floor() -> None:
     wait_time, method = estimate_wait_time_ms(
         request(street="river"),

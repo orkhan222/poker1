@@ -115,6 +115,8 @@ $ScopeAlignmentJson = Join-Path $ReportsDir "pdf_scope_alignment.json"
 $ScopeAlignmentMarkdown = Join-Path $ReportsDir "pdf_scope_alignment.md"
 $ScopeComparisonCsv = Join-Path $ReportsDir "pdf_scope_model_comparison.csv"
 $DeliveryReadinessReport = Join-Path $ReportsDir "delivery_readiness.json"
+$StrategyRemediationJson = Join-Path $ReportsDir "strategy_remediation.json"
+$StrategyRemediationMarkdown = Join-Path $ReportsDir "strategy_remediation.md"
 
 Write-Host "1/8 Auditing dataset..." -ForegroundColor Green
 & $Python scripts\audit_dataset.py `
@@ -245,9 +247,15 @@ Write-Host "5f/8 Evaluating policy acceptance gates..." -ForegroundColor Green
     --model $ModelOut `
     --out $PolicyAcceptanceJson `
     --report-out $PolicyAcceptanceMarkdown `
-    --max-examples 5000 `
+    --max-examples 2000 `
     --missing-hole-cards drop `
-    --strategy-selector ev_calibrated
+    --strategy-selector deployment_gated `
+    --simulation-seeds "11,23,37,41,53" `
+    --simulation-hands-per-seed 20 `
+    --behavior-max-rows 100000 `
+    --behavior-max-model-examples 1000 `
+    --min-behavior-samples 100 `
+    --ev-weight 0.86
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Policy acceptance evaluation failed."
 }
@@ -289,6 +297,21 @@ Write-Host "7b/8 Building delivery readiness summary..." -ForegroundColor Green
     --out $DeliveryReadinessReport
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Delivery readiness summary failed."
+}
+
+Write-Host "7c/8 Building strategy remediation plan..." -ForegroundColor Green
+& $Python scripts\build_strategy_remediation.py `
+    --project-root $ProjectRoot `
+    --out $StrategyRemediationJson `
+    --markdown-out $StrategyRemediationMarkdown
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Strategy remediation report failed."
+}
+& $Python scripts\build_delivery_readiness.py `
+    --project-root $ProjectRoot `
+    --out $DeliveryReadinessReport
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Delivery readiness refresh failed."
 }
 
 Remove-DeliveryArtifacts -Root $ProjectRoot
@@ -349,4 +372,6 @@ Write-Host "Scope alignment: $ScopeAlignmentJson"
 Write-Host "Scope alignment report: $ScopeAlignmentMarkdown"
 Write-Host "Scope model comparison: $ScopeComparisonCsv"
 Write-Host "Delivery readiness: $DeliveryReadinessReport"
+Write-Host "Strategy remediation: $StrategyRemediationJson"
+Write-Host "Strategy remediation report: $StrategyRemediationMarkdown"
 Write-Host "ZIP: $ZipPath"

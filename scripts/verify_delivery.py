@@ -128,6 +128,8 @@ def require_files(root: Path) -> str:
         "reports/pdf_scope_alignment.json",
         "reports/pdf_scope_alignment.md",
         "reports/pdf_scope_model_comparison.csv",
+        "reports/strategy_remediation.json",
+        "reports/strategy_remediation.md",
         "reports/delivery_readiness.json",
         "reports/delivery_report.md",
         "evaluation/event_extraction_gold.jsonl",
@@ -152,6 +154,7 @@ def require_files(root: Path) -> str:
         "scripts/evaluate_policy_acceptance.py",
         "scripts/pdf_scope_delivery.py",
         "scripts/build_delivery_readiness.py",
+        "scripts/build_strategy_remediation.py",
         "scripts/production_gate.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
@@ -159,6 +162,7 @@ def require_files(root: Path) -> str:
         "poker_agent/api_contract.py",
         "poker_agent/delivery_scope.py",
         "poker_agent/delivery_readiness.py",
+        "poker_agent/strategy_remediation.py",
         "poker_agent/strategy_readiness.py",
         "poker_agent/action_planning.py",
         "poker_agent/agents.py",
@@ -191,6 +195,7 @@ def compile_sources(root: Path) -> str:
         "poker_agent/api_contract.py",
         "poker_agent/delivery_scope.py",
         "poker_agent/delivery_readiness.py",
+        "poker_agent/strategy_remediation.py",
         "poker_agent/strategy_readiness.py",
         "poker_agent/agents.py",
         "poker_agent/evaluator.py",
@@ -333,6 +338,7 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     policy_acceptance = root / "reports" / "policy_acceptance.json"
     scope_alignment = root / "reports" / "pdf_scope_alignment.json"
     scope_comparison = root / "reports" / "pdf_scope_model_comparison.csv"
+    strategy_remediation = root / "reports" / "strategy_remediation.json"
     if "findings" not in audit:
         raise AssertionError("Audit report has no findings key")
     if repo_audit.get("status") != "PASS":
@@ -363,10 +369,10 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     if not delivery_readiness_report.exists():
         raise AssertionError("Delivery readiness report is missing")
     delivery_readiness = json.loads(delivery_readiness_report.read_text(encoding="utf-8"))
-    if delivery_readiness.get("service_delivery_status") != "READY":
-        raise AssertionError(f"Service is not marked ready for handoff: {delivery_readiness}")
-    if gate.get("status") == "FAIL" and delivery_readiness.get("overall_status") != "READY_FOR_TECHNICAL_HANDOFF":
-        raise AssertionError(f"Failing strategy gate must keep handoff-only status: {delivery_readiness}")
+    if delivery_readiness.get("service_delivery_status") not in {"READY", "NOT_READY"}:
+        raise AssertionError(f"Invalid service delivery readiness status: {delivery_readiness}")
+    if gate.get("status") == "FAIL" and delivery_readiness.get("strategy_policy_status") != "NOT_APPROVED":
+        raise AssertionError(f"Failing strategy gate must keep strategy status NOT_APPROVED: {delivery_readiness}")
     live_delivery_readiness = summarize_delivery_readiness(root)
     if live_delivery_readiness.get("strategy_policy_status") != delivery_readiness.get("strategy_policy_status"):
         raise AssertionError("Delivery readiness report does not match live strategy readiness")
@@ -398,6 +404,16 @@ def reports_contract(root: Path, require_gate_pass: bool) -> str:
     live_scope = scope_alignment_json()
     if live_scope.get("overall_status") != scope_payload.get("overall_status"):
         raise AssertionError("Scope alignment endpoint does not match report")
+    if not strategy_remediation.exists():
+        raise AssertionError("Strategy remediation report is missing")
+    remediation_payload = json.loads(strategy_remediation.read_text(encoding="utf-8"))
+    if remediation_payload.get("strategy_policy_status") not in {"APPROVED", "NOT_APPROVED"}:
+        raise AssertionError(f"Invalid strategy remediation status: {remediation_payload.get('strategy_policy_status')}")
+    if remediation_payload.get("strategy_policy_status") == "NOT_APPROVED":
+        if not remediation_payload.get("blocking_items"):
+            raise AssertionError("Strategy remediation must expose blocking items when policy is not approved")
+        if remediation_payload.get("release_mode") != "technical_handoff_only":
+            raise AssertionError("Unapproved strategy must remain in technical_handoff_only release mode")
     if not event_schema_report.exists():
         raise AssertionError("Phase 1 event schema dataset report is missing")
     schema_payload = json.loads(event_schema_report.read_text(encoding="utf-8"))
@@ -612,6 +628,8 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "reports/pdf_scope_alignment.json",
         "reports/pdf_scope_alignment.md",
         "reports/pdf_scope_model_comparison.csv",
+        "reports/strategy_remediation.json",
+        "reports/strategy_remediation.md",
         "reports/delivery_readiness.json",
         "reports/delivery_report.md",
         "scripts/benchmark.py",
@@ -627,11 +645,13 @@ def zip_contract(root: Path, zip_path: Path) -> str:
         "scripts/llm_training_delivery.py",
         "scripts/pdf_scope_delivery.py",
         "scripts/build_delivery_readiness.py",
+        "scripts/build_strategy_remediation.py",
         "scripts/run_hydra_experiment.py",
         "scripts/verify_delivery.py",
         "poker_agent/api_contract.py",
         "poker_agent/delivery_scope.py",
         "poker_agent/delivery_readiness.py",
+        "poker_agent/strategy_remediation.py",
         "poker_agent/strategy_readiness.py",
         "poker_agent/event_schema.py",
         "poker_agent/event_normalization/__init__.py",

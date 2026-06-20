@@ -28,6 +28,7 @@ def summarize_delivery_readiness(project_root: Path) -> dict[str, Any]:
     delivery_verification = _read_json(reports_dir / "delivery_verification.json")
     repo_hygiene = _read_json(reports_dir / "repo_hygiene.json")
     scope_alignment = _read_json(reports_dir / "pdf_scope_alignment.json")
+    strategy_remediation = _read_json(reports_dir / "strategy_remediation.json")
     strategy_readiness = load_strategy_readiness(reports_dir / "production_gate.json")
 
     verification_status = delivery_verification.get("status", "MISSING")
@@ -81,6 +82,8 @@ def summarize_delivery_readiness(project_root: Path) -> dict[str, Any]:
         "strategy_evidence": {
             "production_gate_status": strategy_readiness.get("production_gate_status"),
             "scope_phase_statuses": scope_alignment.get("phase_statuses", {}),
+            "strategy_remediation_status": strategy_remediation.get("strategy_policy_status", "MISSING"),
+            "strategy_remediation_blockers": len(strategy_remediation.get("blocking_items", [])),
             "metric_snapshot": strategy_readiness.get("metric_snapshot", {}),
             "blocking_reasons": strategy_readiness.get("blocking_reasons", []),
             "recommended_next_milestone": strategy_readiness.get("recommended_next_milestone", {}),

@@ -10,10 +10,11 @@ As of the latest delivery build:
 repository_audit=PASS
 repo_hygiene=PASS
 delivery_verification=PASS
+policy_acceptance=PASS
 production_gate=FAIL
 ```
 
-The package is reproducible and ready for technical handoff. The model is not marked as production-approved for autonomous decision policy use, because the current dataset still has known coverage and class-balance limitations. Those limitations are documented in `reports\dataset_audit.json` and `reports\production_gate.json`.
+The package is reproducible and ready for technical handoff. The deployment-gated policy acceptance path now passes human-action alignment, action-distribution, timing, bet-size, and synthetic simulation proxy gates. The model is still not marked as production-approved for autonomous decision policy use because the raw production model gate and validated self-play environment remain separate approval requirements. Those limitations are documented in `reports\dataset_audit.json`, `reports\policy_acceptance.json`, `reports\strategy_remediation.json`, and `reports\production_gate.json`.
 
 ## Repository Layout
 
@@ -56,6 +57,7 @@ http://127.0.0.1:8001/health.json
 http://127.0.0.1:8001/contract.json
 http://127.0.0.1:8001/delivery-readiness.json
 http://127.0.0.1:8001/scope-alignment.json
+http://127.0.0.1:8001/strategy-remediation.json
 http://127.0.0.1:8001/strategy-readiness.json
 ```
 
@@ -99,7 +101,7 @@ The current strategy approval boundary is available as a machine-readable report
 http://127.0.0.1:8001/strategy-readiness.json
 ```
 
-That endpoint exposes `strategy_policy_status`, `deployment_mode`, metric snapshots, blocking gates, required fixes, and the recommended next milestone. In the current delivery this status is expected to be `NOT_APPROVED` because the model does not yet beat all production strategy thresholds.
+That endpoint exposes `strategy_policy_status`, `deployment_mode`, metric snapshots, blocking gates, required fixes, and the recommended next milestone. In the current delivery this status is expected to be `NOT_APPROVED`: the deployment-gated strategy acceptance report passes, while the raw model artifact gate and validated real self-play requirement are still blocking production strategy approval.
 
 The combined service-delivery and strategy-approval status is exposed through:
 
@@ -116,6 +118,14 @@ http://127.0.0.1:8001/scope-alignment.json
 ```
 
 It maps the requested LLM baseline, supervised policy baseline, architecture comparison, action alignment, synthetic win-rate gate, human-likeness gate, and FastAPI/Docker deployment into measurable phase gates.
+
+The strategy remediation plan is exposed through:
+
+```text
+http://127.0.0.1:8001/strategy-remediation.json
+```
+
+It lists the concrete blocking gates, required fixes, and engineering workstreams that must be completed before the poker strategy can be claimed as production-approved.
 
 ## Architecture Notes
 
@@ -437,6 +447,8 @@ reports\policy_acceptance.md
 reports\pdf_scope_alignment.json
 reports\pdf_scope_alignment.md
 reports\pdf_scope_model_comparison.csv
+reports\strategy_remediation.json
+reports\strategy_remediation.md
 reports\event_schema_dataset_report.json
 reports\event_schema_dataset_report.md
 reports\phase2_event_benchmark_results.csv

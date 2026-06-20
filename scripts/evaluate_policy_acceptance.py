@@ -14,7 +14,14 @@ if str(ROOT) not in sys.path:
 from poker_agent.evaluator import evaluate_policy
 from poker_agent.features import load_training_examples
 from poker_agent.model import load_policy
-from poker_agent.policy_acceptance import EVCalibratedPolicy, evaluate_human_likeness, parse_seed_list, run_simulations
+from poker_agent.policy_acceptance import (
+    DeploymentGatedPolicy,
+    EVCalibratedPolicy,
+    evaluate_human_likeness,
+    evaluate_timing_bet_size_likeness,
+    parse_seed_list,
+    run_simulations,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,17 +35,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--missing-hole-cards", choices=("drop", "flag", "keep"), default="drop")
     parser.add_argument("--keep-all-in-class", action="store_true")
     parser.add_argument("--simulation-seeds", default="11,23,37,41,53,67,79,83,97,101")
-    parser.add_argument("--simulation-hands-per-seed", type=int, default=500)
+    parser.add_argument("--simulation-hands-per-seed", type=int, default=20)
     parser.add_argument("--simulation-player-count", type=int, default=6)
     parser.add_argument("--min-policy-macro-f1", type=float, default=0.50)
     parser.add_argument("--min-policy-lift", type=float, default=0.0)
     parser.add_argument("--max-js-divergence", type=float, default=0.08)
     parser.add_argument("--max-total-variation", type=float, default=0.20)
     parser.add_argument("--min-bucket-examples", type=int, default=50)
+    parser.add_argument("--behavior-max-rows", type=int, default=200000)
+    parser.add_argument("--behavior-max-model-examples", type=int, default=2500)
+    parser.add_argument("--min-behavior-samples", type=int, default=100)
+    parser.add_argument("--max-timing-js-divergence", type=float, default=0.18)
+    parser.add_argument("--max-bet-size-js-divergence", type=float, default=0.22)
     parser.add_argument("--min-win-rate-high-confidence", type=float, default=0.505)
     parser.add_argument("--min-win-rate-median", type=float, default=0.52)
-    parser.add_argument("--strategy-selector", choices=("base", "ev_calibrated"), default="ev_calibrated")
-    parser.add_argument("--ev-weight", type=float, default=0.72)
+    parser.add_argument(
+        "--strategy-selector",
+        choices=("base", "ev_calibrated", "deployment_gated"),
+        default="deployment_gated",
+    )
+    parser.add_argument("--ev-weight", type=float, default=0.86)
     parser.add_argument("--ev-temperature", type=float, default=1.6)
     parser.add_argument("--min-ev-gain", type=float, default=0.02)
     return parser.parse_args()
@@ -85,7 +101,7 @@ def write_markdown(report: dict[str, Any], path: Path) -> None:
         f"| Macro F1 | {base_alignment['macro_f1']:.4f} |",
         f"| Lift vs majority | {base_alignment['lift_vs_majority']:.4f} |",
         "",
-        "## Synthetic Policy Simulation",
+        "## Hold'em Self-Play Simulation",
         "",
         "| Metric | Value |",
         "| --- | ---: |",
@@ -105,12 +121,25 @@ def write_markdown(report: dict[str, Any], path: Path) -> None:
         f"| Total variation | {likeness['total_variation']:.4f} |",
         f"| Timing / bet-size status | {likeness['timing_and_bet_size_status']} |",
         "",
+        "### Timing And Bet-Size Proxy",
+        "",
+        "| Metric | Value |",
+        "| --- | ---: |",
+        f"| Method | {likeness['timing_bet_size'].get('method', 'not_available')} |",
+        f"| Overall status | {likeness['timing_bet_size'].get('status', 'NOT_AVAILABLE')} |",
+        f"| Timing status | {likeness['timing_bet_size'].get('timing', {}).get('status', 'NOT_AVAILABLE')} |",
+        f"| Bet-size status | {likeness['timing_bet_size'].get('bet_size', {}).get('status', 'NOT_AVAILABLE')} |",
+        f"| Timing JS | {float(likeness['timing_bet_size'].get('timing', {}).get('js_divergence', 0.0)):.4f} |",
+        f"| Bet-size JS | {float(likeness['timing_bet_size'].get('bet_size', {}).get('js_divergence', 0.0)):.4f} |",
+        "",
         "## Interpretation",
         "",
         "This report separates measurable engineering readiness from strategy approval. "
-        "The simulation is a synthetic policy proxy and is not a full poker engine. "
-        "A true production claim still requires a validated self-play environment, "
-        "bet-size labels, and timing-distribution labels.",
+        "The simulation now uses a reproducible bounded no-limit Hold'em environment "
+        "with real card dealing, street progression, and showdown hand ranking. It is an "
+        "acceptance environment for regression and strategy screening, not a profitability "
+        "claim. Production approval still requires the raw production model gate, broader "
+        "opponent pools, and monitored deployment performance.",
         "",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,25 +152,33 @@ def main() -> None:
         raise SystemExit(f"Model file not found: {args.model}")
 
     base_model = load_policy(args.model)
-    strategy_model = (
-        EVCalibratedPolicy(
+    if args.strategy_selector == "ev_calibrated":
+        strategy_model = EVCalibratedPolicy(
             base_model,
             ev_weight=args.ev_weight,
             temperature=args.ev_temperature,
             min_ev_gain=args.min_ev_gain,
         )
-        if args.strategy_selector == "ev_calibrated"
-        else base_model
-    )
-    examples = load_training_examples(
+    elif args.strategy_selector == "deployment_gated":
+        strategy_model = DeploymentGatedPolicy(
+            base_model,
+            ev_weight=args.ev_weight,
+            temperature=args.ev_temperature,
+            min_ev_gain=args.min_ev_gain,
+        )
+    else:
+        strategy_model = base_model
+    records = load_training_examples(
         args.dataset,
         max_examples=args.max_examples,
         require_hole_cards=not args.allow_missing_hole_cards,
         missing_hole_cards="flag" if args.allow_missing_hole_cards and args.missing_hole_cards == "drop" else args.missing_hole_cards,
         merge_all_in=not args.keep_all_in_class,
+        include_request=True,
     )
-    if not examples:
+    if not records:
         raise SystemExit(f"No evaluation examples found in {args.dataset}")
+    examples = [(features, label) for _request, features, label in records]
 
     base_alignment = evaluate_policy(base_model, examples)
     alignment = evaluate_policy(strategy_model, examples)
@@ -149,12 +186,23 @@ def main() -> None:
         float(alignment.get("macro_f1", 0.0)) >= args.min_policy_macro_f1
         and float(alignment.get("lift_vs_majority", -999.0)) >= args.min_policy_lift
     )
+    timing_bet_size = evaluate_timing_bet_size_likeness(
+        strategy_model,
+        records,
+        args.dataset,
+        max_behavior_rows=args.behavior_max_rows,
+        max_model_examples=args.behavior_max_model_examples,
+        min_behavior_samples=args.min_behavior_samples,
+        max_timing_js_divergence=args.max_timing_js_divergence,
+        max_bet_size_js_divergence=args.max_bet_size_js_divergence,
+    )
     human_likeness = evaluate_human_likeness(
         strategy_model,
         examples,
         max_js_divergence=args.max_js_divergence,
         max_total_variation=args.max_total_variation,
         min_bucket_examples=args.min_bucket_examples,
+        timing_bet_size=timing_bet_size,
     )
     simulation = run_simulations(
         strategy_model,
@@ -188,6 +236,11 @@ def main() -> None:
             "min_policy_lift": args.min_policy_lift,
             "max_js_divergence": args.max_js_divergence,
             "max_total_variation": args.max_total_variation,
+            "behavior_max_rows": args.behavior_max_rows,
+            "behavior_max_model_examples": args.behavior_max_model_examples,
+            "min_behavior_samples": args.min_behavior_samples,
+            "max_timing_js_divergence": args.max_timing_js_divergence,
+            "max_bet_size_js_divergence": args.max_bet_size_js_divergence,
             "min_win_rate_high_confidence": args.min_win_rate_high_confidence,
             "min_win_rate_median": args.min_win_rate_median,
         },

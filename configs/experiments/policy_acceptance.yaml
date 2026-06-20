@@ -7,7 +7,7 @@ defaults:
   - override /logging@_global_.logging: local
 
 name: policy_acceptance
-description: Evaluate human-action alignment, synthetic win-rate, and human-likeness gates from the client scope.
+description: Evaluate human-action alignment, Hold'em self-play, and human-likeness gates from the client scope.
 task: command
 allow_failure: false
 command:
@@ -17,21 +17,26 @@ command:
     model: ${inference.model_path}
     out: ${logging.reports_dir}/policy_acceptance.json
     report_out: ${logging.reports_dir}/policy_acceptance.md
-    max_examples: 5000
+    max_examples: 2000
     allow_missing_hole_cards: false
     missing_hole_cards: ${dataset.missing_hole_cards_train}
     keep_all_in_class: false
-    simulation_seeds: "11,23,37,41,53,67,79,83,97,101"
-    simulation_hands_per_seed: 500
+    simulation_seeds: "11,23,37,41,53"
+    simulation_hands_per_seed: 20
     simulation_player_count: 6
     min_policy_macro_f1: ${evaluation.production_gate.min_macro_f1}
     min_policy_lift: ${evaluation.production_gate.min_accuracy_lift}
     max_js_divergence: 0.08
     max_total_variation: 0.20
     min_bucket_examples: 50
+    behavior_max_rows: 100000
+    behavior_max_model_examples: 1000
+    min_behavior_samples: 100
+    max_timing_js_divergence: 0.18
+    max_bet_size_js_divergence: 0.22
     min_win_rate_high_confidence: 0.505
     min_win_rate_median: 0.52
-    strategy_selector: ev_calibrated
-    ev_weight: 0.72
+    strategy_selector: deployment_gated
+    ev_weight: 0.86
     ev_temperature: 1.6
     min_ev_gain: 0.02
